@@ -1,0 +1,29 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Print styles for reports */
+@media print {
+  /* Hide navigation and non-printable elements */
+  aside,
+  header,
+  button,
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Reset layout for print */
+  .lg\:pl-64 {
+    padding-left: 0 !important;
+  }
+  
+  /* Full page content */
+  main {
+    padding: 0 !important;
+  }
+  
+  /* Ensure proper page breaks */
+  .print\:border-0 {
+    border: 0 !important;
+  }
+}

@@ -1,0 +1,444 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router';
+import { ArrowLeft, Save, Plus, X, Upload, Trash2, MapPin, Calendar, User as UserIcon, AlertCircle } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Badge } from '../components/ui/badge';
+import { Separator } from '../components/ui/separator';
+import { Textarea } from '../components/ui/textarea';
+import { getServiceById, updateService, getEquipment } from '../lib/storage';
+import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate } from '../lib/utils';
+import { ServiceStatus, ServicePriority } from '../lib/types';
+import { toast } from 'sonner';
+
+export function ServiceDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [service, setService] = useState(() => getServiceById(id!));
+  const [status, setStatus] = useState<ServiceStatus>(service?.status || 'pending');
+  const [priority, setPriority] = useState<ServicePriority>(service?.priority || 'medium');
+  const [assignedTechnician, setAssignedTechnician] = useState(service?.assignedTechnician || '');
+  const [location, setLocation] = useState(service?.location || '');
+  const [estimatedCompletion, setEstimatedCompletion] = useState(service?.estimatedCompletionDate || '');
+  const [observations, setObservations] = useState(service?.observations || '');
+  const [newEquipment, setNewEquipment] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const availableEquipment = getEquipment();
+
+  useEffect(() => {
+    if (!service) {
+      toast.error('Servicio no encontrado');
+      navigate('/services');
+    }
+  }, [service, navigate]);
+
+  if (!service) return null;
+
+  const handleUpdateBasicInfo = () => {
+    const updated = updateService(service.id, { 
+      status, 
+      priority,
+      assignedTechnician: assignedTechnician || undefined,
+      location: location || undefined,
+      estimatedCompletionDate: estimatedCompletion || undefined,
+      observations,
+    });
+    if (updated) {
+      setService(updated);
+      toast.success('Información actualizada correctamente');
+    }
+  };
+
+  const handleAddEquipment = () => {
+    if (!newEquipment.trim()) {
+      toast.error('Seleccione o ingrese un equipo');
+      return;
+    }
+
+    const updated = updateService(service.id, {
+      equipment: [...service.equipment, newEquipment],
+    });
+
+    if (updated) {
+      setService(updated);
+      setNewEquipment('');
+      toast.success('Equipo agregado');
+    }
+  };
+
+  const handleRemoveEquipment = (index: number) => {
+    const updated = updateService(service.id, {
+      equipment: service.equipment.filter((_, i) => i !== index),
+    });
+    if (updated) {
+      setService(updated);
+      toast.success('Equipo eliminado');
+    }
+  };
+
+  const handleUploadImage = () => {
+    if (!imageFile) {
+      toast.error('Seleccione una imagen');
+      return;
+    }
+
+    const imageUrl = URL.createObjectURL(imageFile);
+    
+    const updated = updateService(service.id, {
+      evidenceImages: [...service.evidenceImages, imageUrl],
+    });
+
+    if (updated) {
+      setService(updated);
+      setImageFile(null);
+      toast.success('Imagen cargada exitosamente');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const updated = updateService(service.id, {
+      evidenceImages: service.evidenceImages.filter((_, i) => i !== index),
+    });
+    if (updated) {
+      setService(updated);
+      toast.success('Imagen eliminada');
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-6xl">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/services')}
+          className="hover:bg-blue-50"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold text-gray-900">
+              {service.name}
+            </h1>
+            <Badge className={`${getStatusColor(service.status)} border`}>
+              {getStatusLabel(service.status)}
+            </Badge>
+            <Badge className={`${getPriorityColor(service.priority)} border`}>
+              Prioridad: {getPriorityLabel(service.priority)}
+            </Badge>
+          </div>
+          <p className="text-gray-600 mt-1">Detalles completos del servicio</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* General Information */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50/50 border-b">
+              <CardTitle>Información General</CardTitle>
+              <CardDescription>Datos básicos del servicio</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Tipo de Servicio</p>
+                  <p className="font-semibold text-gray-900">{getTypeLabel(service.type)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">ID de Servicio</p>
+                  <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded inline-block">
+                    #{service.id}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Fecha de Inicio</p>
+                  <p className="font-semibold text-gray-900">{formatDate(service.startDate)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Fecha de Fin</p>
+                  <p className="font-semibold text-gray-900">{formatDate(service.endDate)}</p>
+                </div>
+              </div>
+
+              {service.description && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Descripción</p>
+                    <p className="text-gray-900">{service.description}</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Requester Information */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-purple-50/50 border-b">
+              <CardTitle>Datos del Solicitante</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="bg-purple-100 p-2 rounded-lg">
+                    <UserIcon className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">{service.requesterName}</p>
+                    <div className="text-sm text-gray-600 space-y-1 mt-1">
+                      <p>📧 {service.requesterEmail}</p>
+                      <p>📞 {service.requesterPhone}</p>
+                      <p>🏢 {service.requesterArea}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Equipment/Tools Assigned */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50/50 border-b">
+              <CardTitle>Equipos y Herramientas Asignadas</CardTitle>
+              <CardDescription>Recursos utilizados en este servicio</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {service.equipment.length > 0 && (
+                <div className="space-y-2">
+                  {service.equipment.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full" />
+                        <span className="font-medium text-gray-900">{item}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveEquipment(index)}
+                      >
+                        <X className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>Agregar Equipo/Herramienta</Label>
+                <div className="flex gap-2">
+                  <Select value={newEquipment} onValueChange={setNewEquipment}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleccionar del inventario..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableEquipment.filter(e => e.available).map((item) => (
+                        <SelectItem key={item.id} value={item.name}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleAddEquipment}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Agregar
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">O escriba manualmente:</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nombre del equipo o herramienta"
+                    value={newEquipment}
+                    onChange={(e) => setNewEquipment(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
+                  />
+                  <Button onClick={handleAddEquipment}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Evidence */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-orange-50/50 border-b">
+              <CardTitle>Evidencias Fotográficas</CardTitle>
+              <CardDescription>Imágenes del trabajo (antes y después)</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {service.evidenceImages.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {service.evidenceImages.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={image}
+                        alt={`Evidencia ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Cargar Nueva Imagen</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    className="flex-1"
+                  />
+                  <Button onClick={handleUploadImage} className="bg-orange-600 hover:bg-orange-700">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Subir
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column - Control Panel */}
+        <div className="space-y-6">
+          {/* Status Control */}
+          <Card className="border-0 shadow-lg sticky top-4">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+              <CardTitle className="text-white">Control del Servicio</CardTitle>
+              <CardDescription className="text-blue-100">
+                Gestionar estado y asignación
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="status" className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Estado
+                </Label>
+                <Select value={status} onValueChange={(value) => setStatus(value as ServiceStatus)}>
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendiente</SelectItem>
+                    <SelectItem value="in-progress">En Progreso</SelectItem>
+                    <SelectItem value="completed">Completado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="priority">Prioridad</Label>
+                <Select value={priority} onValueChange={(value) => setPriority(value as ServicePriority)}>
+                  <SelectTrigger id="priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Baja</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="technician" className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4" />
+                  Técnico Asignado
+                </Label>
+                <Input
+                  id="technician"
+                  placeholder="Nombre del técnico"
+                  value={assignedTechnician}
+                  onChange={(e) => setAssignedTechnician(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Ubicación
+                </Label>
+                <Input
+                  id="location"
+                  placeholder="ej. Planta Baja - Sección 3"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="estimatedCompletion" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Fecha Estimada Finalización
+                </Label>
+                <Input
+                  id="estimatedCompletion"
+                  type="date"
+                  value={estimatedCompletion}
+                  onChange={(e) => setEstimatedCompletion(e.target.value)}
+                />
+              </div>
+
+              <Button 
+                onClick={handleUpdateBasicInfo}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Guardar Cambios
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Tracking/Observations */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-yellow-50/50 border-b">
+              <CardTitle>Seguimiento</CardTitle>
+              <CardDescription>Observaciones y notas</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="observations">Observaciones</Label>
+                <Textarea
+                  id="observations"
+                  placeholder="Notas sobre el progreso, problemas encontrados, soluciones aplicadas..."
+                  value={observations}
+                  onChange={(e) => setObservations(e.target.value)}
+                  rows={6}
+                  className="resize-none"
+                />
+              </div>
+              <Button 
+                onClick={handleUpdateBasicInfo}
+                variant="outline"
+                className="w-full"
+              >
+                Actualizar Observaciones
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
