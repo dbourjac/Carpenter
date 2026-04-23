@@ -34,6 +34,7 @@ export function Layout({ children }: LayoutProps) {
     { name: 'Servicios', href: '/services', icon: ClipboardList },
     { name: 'Equipos y Herramientas', href: '/equipment', icon: Wrench },
     { name: 'Reportes', href: '/reports', icon: FileText },
+    { name: 'Técnicos', href: '/technicians', icon: User },
   ];
 
   const isActive = (href: string) => {

@@ -26,7 +26,7 @@ export function EquipmentPage() {
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'equipment' as 'equipment' | 'tool',
+    type: 'equipment' as 'equipment' | 'tool' | 'machinery',
     available: true,
     description: '',
   });
@@ -103,9 +103,12 @@ export function EquipmentPage() {
     }
   };
 
-  const filteredEquipment = typeFilter === 'all' 
-    ? equipment 
-    : equipment.filter(item => item.type === typeFilter);
+  const filteredEquipment =
+    typeFilter === 'all'
+      ? equipment
+      : typeFilter === 'machinery'
+      ? equipment.filter((item) => item.type === 'machinery')
+      : equipment.filter((item) => item.type === typeFilter);
 
   const stats = {
     equipment: equipment.filter(i => i.type === 'equipment').length,
@@ -165,8 +168,9 @@ export function EquipmentPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="equipment">Equipo (Maquinaria)</SelectItem>
+                    <SelectItem value="equipment">Equipo</SelectItem>
                     <SelectItem value="tool">Herramienta</SelectItem>
+                    <SelectItem value="machinery">Maquinaria</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -269,8 +273,9 @@ export function EquipmentPage() {
 
       {/* Equipment List */}
       <Tabs value={typeFilter} onValueChange={setTypeFilter}>
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full max-w-md grid-cols-4">
           <TabsTrigger value="all">Todos</TabsTrigger>
+          <TabsTrigger value="machinery">Maquinaria</TabsTrigger>
           <TabsTrigger value="equipment">Equipos</TabsTrigger>
           <TabsTrigger value="tool">Herramientas</TabsTrigger>
         </TabsList>
@@ -280,8 +285,13 @@ export function EquipmentPage() {
             <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50/50 border-b">
               <CardTitle>Listado de Recursos</CardTitle>
               <CardDescription>
-                {typeFilter === 'all' ? 'Todos los equipos y herramientas' :
-                 typeFilter === 'equipment' ? 'Maquinaria y equipos' : 'Herramientas del taller'}
+                {typeFilter === 'all'
+                  ? 'Todos los equipos y herramientas'
+                  : typeFilter === 'equipment'
+                  ? 'Maquinaria y equipos'
+                  : typeFilter === 'tool'
+                  ? 'Herramientas del taller'
+                  : 'Maquinaria pesada del taller'}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">

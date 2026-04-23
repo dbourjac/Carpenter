@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router';
 import { Link } from 'react-router';
 import { Plus, Filter, Search, Calendar } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -7,33 +8,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { getServices } from '../lib/storage';
-import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate } from '../lib/utils';
+import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate, sortServices, filterServices } from '../lib/utils';
+
 
 export function ServicesListPage() {
   const services = getServices();
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(
+    searchParams.get('status') || 'all'
+  );
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const period = searchParams.get('period');
 
   const filteredServices = useMemo(() => {
-    return services.filter(service => {
-      const matchesSearch = 
-        service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.requesterArea.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || service.status === statusFilter;
-      const matchesType = typeFilter === 'all' || service.type === typeFilter;
-      const matchesPriority = priorityFilter === 'all' || service.priority === priorityFilter;
-
-      return matchesSearch && matchesStatus && matchesType && matchesPriority;
+    let result = filterServices(services, {
+      searchQuery,
+      statusFilter,
+      typeFilter,
+      priorityFilter
     });
-  }, [services, searchQuery, statusFilter, typeFilter, priorityFilter]);
+
+    if (period === 'month') {
+      const now = new Date();
+
+      result = result.filter((s) => {
+        const date = new Date(s.endDate || s.startDate);
+
+        return (
+          date.getMonth() === now.getMonth() &&
+          date.getFullYear() === now.getFullYear()
+        );
+      });
+    }
+
+    return sortServices(result);
+  }, [services, searchQuery, statusFilter, typeFilter, priorityFilter, period]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -42,7 +56,7 @@ export function ServicesListPage() {
               Servicios
             </span>
           </h1>
-          <p className="text-gray-600 mt-1">Gestión completa de solicitudes de servicio</p>
+          <p className="text-gray-600 mt-1">Administra y consulta los servicios del taller</p>
         </div>
         <Link to="/services/new">
           <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg">
@@ -53,18 +67,14 @@ export function ServicesListPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50/50 border-b py-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros de Búsqueda
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Buscar</label>
-              <div className="relative">
+      <Card className="border-0 shadow-lg -mt-2">
+        <CardContent className="pt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
+            <div className="flex flex-col gap-2 mt-auto">
+              <label className="text-sm font-medium text-gray-700 leading-[1]">
+                Buscar
+              </label>
+              <div className="relative flex items-center h-11">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Nombre, área, descripción..."
@@ -125,7 +135,7 @@ export function ServicesListPage() {
       </Card>
 
       {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-xs">
         <span className="text-gray-600">
           Mostrando <span className="font-semibold text-gray-900">{filteredServices.length}</span> de {services.length} servicios
         </span>
@@ -146,7 +156,7 @@ export function ServicesListPage() {
       </div>
 
       {/* Services List */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {filteredServices.length === 0 ? (
           <Card className="border-0 shadow-lg">
             <CardContent className="py-12 text-center">
@@ -155,9 +165,16 @@ export function ServicesListPage() {
           </Card>
         ) : (
           filteredServices.map((service) => (
-            <Link key={service.id} to={`/services/${service.id}`}>
-              <Card className="border-2 border-gray-100 hover:border-blue-300 hover:shadow-lg transition-all cursor-pointer">
-                <CardContent className="p-5">
+            <Link 
+              key={service.id} 
+              to={`/services/${service.id}`}
+              className={`block w-full p-5 border-2 rounded-xl bg-white transition-all duration-200 cursor-pointer 
+              hover:bg-gray-300 hover:shadow-xl hover:-translate-y-[2px] ${
+                service.priority === 'high'
+                  ? 'border-red-400 shadow-md'
+                  : 'border-gray-100'
+              }`}
+            >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex-1 space-y-3">
                       <div className="flex items-start gap-3 flex-wrap">
@@ -207,8 +224,6 @@ export function ServicesListPage() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
             </Link>
           ))
         )}

@@ -9,6 +9,7 @@ import { EquipmentPage } from './pages/EquipmentPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { getCurrentUser } from './lib/storage';
+import { TechniciansPage } from './pages/TechniciansPage';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -84,4 +85,12 @@ export const router = createBrowserRouter([
     path: '*',
     element: <Navigate to="/dashboard" replace />,
   },
+  {
+    path: '/technicians',
+    element: (
+      <ProtectedRoute>
+        <TechniciansPage />
+      </ProtectedRoute>
+    ),
+  }
 ]);

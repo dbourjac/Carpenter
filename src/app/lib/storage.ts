@@ -44,14 +44,15 @@ export const getCurrentUser = (): User | null => {
 };
 
 // Services
+const USE_MOCKS = true;
+
 export const getServices = (): ServiceRequest[] => {
-  const stored = localStorage.getItem(STORAGE_KEYS.SERVICES);
-  if (stored) {
-    return JSON.parse(stored);
+  if (USE_MOCKS) {
+    return getMockServices();
   }
-  const mockServices = getMockServices();
-  localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(mockServices));
-  return mockServices;
+
+  const stored = localStorage.getItem(STORAGE_KEYS.SERVICES);
+  return stored ? JSON.parse(stored) : [];
 };
 
 export const getServiceById = (id: string): ServiceRequest | undefined => {
@@ -213,6 +214,116 @@ function getMockServices(): ServiceRequest[] {
       createdAt: '2026-04-15T15:00:00Z',
       updatedAt: '2026-04-15T15:00:00Z',
     },
+    {
+      id: '5',
+      name: 'Fuga de Aire en Compresor Central',
+      type: 'corrective',
+      status: 'in-progress',
+      priority: 'high',
+      startDate: '2026-04-20',
+      endDate: '2026-04-21',
+      estimatedCompletionDate: '2026-04-21',
+      requesterName: 'Carlos Méndez',
+      requesterPhone: '+1234567896',
+      requesterEmail: 'carlos.mendez@company.com',
+      requesterArea: 'Compresores',
+      assignedTechnician: 'Luis Torres',
+      equipment: ['Detector de Fugas', 'Llave Inglesa'],
+      observations: 'Fuga detectada en válvula principal. Requiere reemplazo.',
+      location: 'Área Técnica - Zona Norte',
+      evidenceImages: ['img1.jpg'],
+      description: 'Pérdida de presión en sistema neumático',
+      createdAt: '2026-04-20T07:30:00Z',
+      updatedAt: '2026-04-20T10:00:00Z',
+    },
+    {
+      id: '6',
+      name: 'Cambio de Iluminación LED',
+      type: 'installation',
+      status: 'completed',
+      priority: 'low',
+      startDate: '2026-04-05',
+      endDate: '2026-04-06',
+      estimatedCompletionDate: '2026-04-06',
+      requesterName: 'Sofía Ramírez',
+      requesterPhone: '+1234567897',
+      requesterEmail: 'sofia.ramirez@company.com',
+      requesterArea: 'Oficinas',
+      assignedTechnician: 'Pedro Díaz',
+      equipment: ['Escalera', 'Kit Eléctrico'],
+      observations: 'Instalación completada correctamente.',
+      location: 'Edificio Administrativo',
+      evidenceImages: ['img2.jpg', 'img3.jpg'],
+      description: 'Sustitución de luminarias fluorescentes por LED',
+      createdAt: '2026-04-04T11:00:00Z',
+      updatedAt: '2026-04-06T17:00:00Z',
+    },
+    {
+      id: '7',
+      name: 'Lubricación de Banda Transportadora',
+      type: 'preventive',
+      status: 'in-progress',
+      priority: 'medium',
+      startDate: '2026-04-21',
+      endDate: '2026-04-21',
+      estimatedCompletionDate: '2026-04-21',
+      requesterName: 'Miguel Ángel',
+      requesterPhone: '+1234567898',
+      requesterEmail: 'miguel.angel@company.com',
+      requesterArea: 'Producción',
+      assignedTechnician: 'Ana García',
+      equipment: ['Aceite Industrial'],
+      observations: 'Proceso en curso, banda con desgaste moderado.',
+      location: 'Línea A',
+      evidenceImages: [],
+      description: 'Mantenimiento preventivo programado',
+      createdAt: '2026-04-21T08:00:00Z',
+      updatedAt: '2026-04-21T09:00:00Z',
+    },
+    {
+      id: '8',
+      name: 'Diagnóstico de Vibración en Máquina CNC',
+      type: 'corrective',
+      status: 'pending',
+      priority: 'high',
+      startDate: '2026-04-22',
+      endDate: '2026-04-23',
+      estimatedCompletionDate: '2026-04-23',
+      requesterName: 'Fernando Ruiz',
+      requesterPhone: '+1234567899',
+      requesterEmail: 'fernando.ruiz@company.com',
+      requesterArea: 'CNC',
+      assignedTechnician: '',
+      equipment: [],
+      observations: 'Se detectó vibración anormal durante operación.',
+      location: 'Área CNC',
+      evidenceImages: [],
+      description: 'Revisión de estabilidad y calibración',
+      createdAt: '2026-04-21T15:00:00Z',
+      updatedAt: '2026-04-21T15:00:00Z',
+    },
+    {
+      id: '9',
+      name: 'Inspección General de Seguridad',
+      type: 'other',
+      status: 'completed',
+      priority: 'medium',
+      startDate: '2026-04-01',
+      endDate: '2026-04-01',
+      estimatedCompletionDate: '2026-04-01',
+      requesterName: 'Seguridad Industrial',
+      requesterPhone: '+1234567800',
+      requesterEmail: 'seguridad@company.com',
+      requesterArea: 'General',
+      assignedTechnician: 'Equipo Seguridad',
+      equipment: ['Checklist Seguridad'],
+      observations: 'Sin hallazgos críticos.',
+      location: 'Toda la planta',
+      evidenceImages: [],
+      description: 'Revisión general de condiciones de seguridad',
+      createdAt: '2026-04-01T08:00:00Z',
+      updatedAt: '2026-04-01T12:00:00Z',
+    },
   ];
 }
 
@@ -288,5 +399,77 @@ function getMockEquipment(): EquipmentItem[] {
       available: false,
       description: 'Amoladora 9" - Asignada a otro servicio'
     },
+    {
+      id: '11',
+      name: 'Máquina CNC Haas',
+      type: 'machinery',
+      available: true,
+      description: 'Centro de mecanizado CNC de alta precisión'
+    },
+    {
+      id: '12',
+      name: 'Máquina de Inyección Plástica',
+      type: 'machinery',
+      available: false,
+      description: 'Máquina industrial para moldeado por inyección'
+    },
+    {
+      id: '13',
+      name: 'Máquina Cortadora Láser',
+      type: 'machinery',
+      available: true,
+      description: 'Corte de precisión con láser industrial'
+    }
+  ];
+}
+
+const TECHNICIANS_KEY = 'technicians';
+
+export const getTechnicians = (): Technician[] => {
+  const stored = localStorage.getItem(TECHNICIANS_KEY);
+  if (stored) return JSON.parse(stored);
+
+  const mock = getMockTechnicians();
+  localStorage.setItem(TECHNICIANS_KEY, JSON.stringify(mock));
+  return mock;
+};
+
+export const createTechnician = (tech: Omit<Technician, 'id' | 'createdAt' | 'updatedAt'>): Technician => {
+  const technicians = getTechnicians();
+
+  const newTech: Technician = {
+    ...tech,
+    id: Date.now().toString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  technicians.push(newTech);
+  localStorage.setItem(TECHNICIANS_KEY, JSON.stringify(technicians));
+  return newTech;
+};
+
+export function getMockTechnicians(): Technician[] {
+  return [
+    {
+      id: '1',
+      name: 'Ana García',
+      phone: '+521234567890',
+      email: 'ana@empresa.com',
+      specialty: 'Mecánico',
+      status: 'busy',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: '2',
+      name: 'Luis Torres',
+      phone: '+521234567891',
+      email: 'luis@empresa.com',
+      specialty: 'Eléctrico',
+      status: 'available',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
   ];
 }

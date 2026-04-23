@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { getServices } from '../lib/storage';
-import { getStatusLabel, getPriorityLabel, getPriorityColor, formatRelativeDate } from '../lib/utils';
+import { getStatusLabel, getPriorityLabel, getPriorityColor, formatRelativeDate, sortServices } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 export function DashboardPage() {
@@ -48,7 +48,7 @@ export function DashboardPage() {
   const statusData = [
     { name: 'Pendiente', value: stats.pending, color: '#f59e0b' },
     { name: 'En Progreso', value: stats.inProgress, color: '#3b82f6' },
-    { name: 'Completado', value: stats.completed, color: '#10b981' },
+    { name: 'Completado', value: stats.completedThisMonth, color: '#10b981' },
   ];
 
   return (
@@ -82,7 +82,8 @@ export function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="interactive-card interactive-card-overlay border-0 shadow-xl ring-2 ring-orange-300/40 bg-gradient-to-br from-orange-400 to-orange-500 text-white overflow-hidden relative">
+        <Link to="/services?status=pending" className="block h-full">
+        <Card className="interactive-card interactive-card-overlay border-0 shadow-xl ring-2 ring-orange-300/40 bg-gradient-to-br from-orange-400 to-orange-500 text-white overflow-hidden relative h-full">
           <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8" />
           <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
             <CardTitle className="text-sm font-medium text-yellow-100">
@@ -92,7 +93,7 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent className="relative z-10">
             <div className="text-3xl font-bold">{stats.pending}</div>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-1 space-y-1">
               <span className="text-xs text-white/80">
                 {stats.pending} pendientes
               </span>
@@ -105,8 +106,10 @@ export function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+        </Link>
 
-        <Card className="interactive-card interactive-card-overlay border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative">
+        <Link to="/services?status=in-progress" className="block h-full">
+        <Card className="interactive-card interactive-card-overlay border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative h-full">
           <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8" />
           <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
             <CardTitle className="text-sm font-medium text-blue-100">
@@ -119,8 +122,10 @@ export function DashboardPage() {
             <p className="text-xs text-blue-100 mt-1">Siendo atendidos</p>
           </CardContent>
         </Card>
+        </Link>
 
-        <Card className="interactive-card interactive-card-overlay border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white overflow-hidden relative">
+        <Link to="/services?status=completed&period=month" className="block h-full">
+        <Card className="interactive-card interactive-card-overlay border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white overflow-hidden relative h-full">
           <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8" />
           <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
             <CardTitle className="text-sm font-medium text-green-100">
@@ -136,6 +141,7 @@ export function DashboardPage() {
             <p className="text-xs text-green-100 mt-1">Servicios finalizados</p>
           </CardContent>
         </Card>
+        </Link>
 
       </div>
 
@@ -170,13 +176,7 @@ export function DashboardPage() {
                 No hay servicios registrados
               </div>
             ) : (
-              [...services]
-                .sort((a, b) => {
-                  if (a.priority === 'high' && b.priority !== 'high') return -1;
-                  if (a.priority !== 'high' && b.priority === 'high') return 1;
-                  return new Date(b.startDate) - new Date(a.startDate);
-                })
-                .slice(0, 5)
+              sortServices(services).slice(0, 5)
                 .map((service) => (
                   <Link 
                     key={service.id} 

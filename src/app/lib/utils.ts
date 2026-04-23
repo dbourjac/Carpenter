@@ -79,3 +79,43 @@ export function formatRelativeDate(dateString: string) {
     month: 'short',
   });
 }
+
+export const sortServices = (services: any[]) => {
+  return [...services].sort((a, b) => {
+    // prioridad alta primero
+    if (a.priority === 'high' && b.priority !== 'high') return -1;
+    if (a.priority !== 'high' && b.priority === 'high') return 1;
+
+    // más recientes primero
+    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+  });
+};
+
+export const filterServices = (
+  services: any[],
+  {
+    searchQuery,
+    statusFilter,
+    typeFilter,
+    priorityFilter
+  }: {
+    searchQuery: string;
+    statusFilter: string;
+    typeFilter: string;
+    priorityFilter: string;
+  }
+) => {
+  return services.filter(service => {
+    const matchesSearch =
+      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.requesterArea.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || service.status === statusFilter;
+    const matchesType = typeFilter === 'all' || service.type === typeFilter;
+    const matchesPriority = priorityFilter === 'all' || service.priority === priorityFilter;
+
+    return matchesSearch && matchesStatus && matchesType && matchesPriority;
+  });
+};

@@ -44,7 +44,18 @@ export interface Material {
 export interface EquipmentItem {
   id: string;
   name: string;
-  type: 'equipment' | 'tool';
+  type: 'equipment' | 'tool' | 'machinery';
   available: boolean;
   description?: string;
+}
+
+export interface Technician {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  specialty: string;
+  status: 'available' | 'busy' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
 }
