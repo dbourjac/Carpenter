@@ -10,6 +10,8 @@ import { ReportsPage } from './pages/ReportsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { getCurrentUser } from './lib/storage';
 import { TechniciansPage } from './pages/TechniciansPage';
+import { TechnicianDetailPage } from './pages/TechnicianDetailPage';
+import { TechnicianCreatePage } from './pages/TechnicianCreatePage';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -90,6 +92,22 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <TechniciansPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/technicians/:id",
+    element: (
+      <ProtectedRoute>
+        <TechnicianDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/technicians/new",
+    element: (
+      <ProtectedRoute>
+        <TechnicianCreatePage />
       </ProtectedRoute>
     ),
   }

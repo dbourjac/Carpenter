@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 export function ReportsPage() {
   const services = getServices();
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
-  const [reportType, setReportType] = useState<string>('service');
+  const [reportType, setReportType] = useState<string>('daily');
+  const [isGenerated, setIsGenerated] = useState(false);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: '',
     end: ''
@@ -22,8 +23,8 @@ export function ReportsPage() {
   const handleGeneratePDF = () => {
     const data = getFilteredServices();
 
-    if (data.length === 0) {
-      toast.error('No hay datos para este reporte');
+    if (!isGenerated) {
+      toast.error('Primero genera el reporte');
       return;
     }
     
@@ -77,6 +78,8 @@ export function ReportsPage() {
         return selectedService ? [selectedService] : [];
     }
   };
+
+  const filteredServices = getFilteredServices();
 
   const stats = {
     totalServices: services.length,
@@ -137,92 +140,172 @@ export function ReportsPage() {
         </CardContent>
       </Card>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>Tipo de Reporte</CardTitle>
-        <CardDescription>Selecciona cómo deseas generar el reporte</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Select value={reportType} onValueChange={setReportType}>
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar tipo..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="service">Por servicio</SelectItem>
-            <SelectItem value="daily">Diario</SelectItem>
-            <SelectItem value="weekly">Semanal</SelectItem>
-            <SelectItem value="range">Por rango de fechas</SelectItem>
-            <SelectItem value="accumulated">Acumulado</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {reportType === 'range' && (
-          <div className="flex gap-3 mt-4">
-            <input
-              type="date"
-              className="border rounded px-3 py-2"
-              value={dateRange.start}
-              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-            />
-            <input
-              type="date"
-              className="border rounded px-3 py-2"
-              value={dateRange.end}
-              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-
       {/* Service Report */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Reporte por Servicio
-          </CardTitle>
-          <CardDescription>
-            Genera un reporte detallado de un servicio específico
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+
+          {/* IZQUIERDA */}
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+
+              {reportType === 'service'
+                ? 'Reporte por Servicio'
+                : reportType === 'daily'
+                ? 'Reporte Diario'
+                : reportType === 'weekly'
+                ? 'Reporte Semanal'
+                : reportType === 'range'
+                ? 'Reporte por Rango'
+                : 'Reporte Acumulado'}
+            </CardTitle>
+
+            <CardDescription>
+              {reportType === 'service'
+                ? 'Genera un reporte detallado de un servicio específico'
+                : 'Visualiza los servicios según el tipo de reporte seleccionado'}
+            </CardDescription>
+          </div>
+
+          {/* DERECHA */}
+          <div className="flex items-center gap-2">
+
+            {reportType !== 'service' && (
+              <Button
+                onClick={() => {
+                  if (reportType === 'range' && (!dateRange.start || !dateRange.end)) {
+                    toast.error('Selecciona ambas fechas');
+                    return;
+                  }
+
+                  setIsGenerated(true);
+                  toast.success('Reporte generado');
+                }}
+              > 
+                Generar
+              </Button>
+            )}
+
+            <Select
+              value={reportType}
+              onValueChange={(value) => {
+                setReportType(value);
+                setIsGenerated(false);
+                setSelectedServiceId('');
+              }}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Diario</SelectItem>
+                <SelectItem value="weekly">Semanal</SelectItem>
+                <SelectItem value="range">Por rango</SelectItem>
+                <SelectItem value="accumulated">Acumulado</SelectItem>
+                <SelectItem value="service">Por servicio</SelectItem>
+              </SelectContent>
+            </Select>
+
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar servicio..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      #{service.id} - {service.description || service.requesterName} 
-                      ({formatDate(service.startDate)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-4">
+            {reportType === 'range' && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                
+                {/* Fecha inicio */}
+                <div className="flex-1">
+                  <label className="text-sm text-gray-600">Fecha inicio</label>
+                  <input
+                    type="date"
+                    className="w-full mt-1 border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
+                    value={dateRange.start}
+                    onChange={(e) =>
+                      setDateRange(prev => ({ ...prev, start: e.target.value }))
+                    }
+                  />
+                </div>
+
+                {/* Fecha fin */}
+                <div className="flex-1">
+                  <label className="text-sm text-gray-600">Fecha fin</label>
+                  <input
+                    type="date"
+                    className="w-full mt-1 border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
+                    value={dateRange.end}
+                    onChange={(e) =>
+                      setDateRange(prev => ({ ...prev, end: e.target.value }))
+                    }
+                  />
+                </div>
+
+              </div>
+            )}
+            {reportType === 'service' && (
+              <div className="flex flex-col sm:flex-row gap-3 items-end">
+                <div className="flex-1">
+                  <Select
+                    value={selectedServiceId}
+                    onValueChange={(value) => {
+                      setSelectedServiceId(value);
+                      setIsGenerated(false);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar servicio..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          #{service.id} - {service.description || service.requesterName} 
+                          ({formatDate(service.startDate)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  onClick={() => {
+                    if (!selectedService) {
+                      toast.error('Selecciona un servicio primero');
+                      return;
+                    }
+                    setIsGenerated(true);
+                    toast.success('Reporte generado');
+                  }}
+                >
+                  Generar
+                </Button>
+              </div>
+            )}
+            {!isGenerated && reportType === 'service' && (
+              <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
+                <p className="text-gray-500">
+                  Selecciona un servicio y genera el reporte para visualizar la información
+                </p>
+              </div>
+            )}
             <div className="flex gap-2">
-              <Button onClick={handlePrint} variant="outline">
+              <Button onClick={handlePrint} variant="outline" disabled={!isGenerated}>
                 <Printer className="mr-2 h-4 w-4" />
                 Imprimir
               </Button>
 
-              <Button onClick={handleGeneratePDF}>
+              <Button onClick={handleGeneratePDF} disabled={!isGenerated}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar PDF
               </Button>
 
-              <Button onClick={handleGenerateExcel} variant="outline">
+              <Button onClick={handleGenerateExcel} variant="outline" disabled={!isGenerated}>
                 <Download className="mr-2 h-4 w-4" />
                 Exportar Excel
               </Button>
             </div>
           </div>
 
-          {selectedService && (
-            <div className="border rounded-lg p-6 space-y-6 bg-white print:border-0">
+          {isGenerated && reportType === 'service' && selectedService && (
+            <div className="border rounded-xl p-8 space-y-8 bg-white shadow-sm print:border-0">
               {/* Report Header */}
               <div className="text-center border-b pb-6">
                 <h2 className="text-2xl font-bold text-gray-900">REPORTE DE SERVICIO</h2>
@@ -300,7 +383,7 @@ export function ReportsPage() {
               {/* Materials */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Materiales Utilizados</h3>
-                {selectedService.materials.length > 0 ? (
+                {selectedService.materials?.length > 0 ? (
                   <div className="border rounded-lg overflow-hidden">
                     <table className="w-full">
                       <thead className="bg-gray-50">
@@ -311,7 +394,7 @@ export function ReportsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {selectedService.materials.map((material, index) => (
+                        {selectedService.materials?.map((material, index) => (
                           <tr key={index}>
                             <td className="px-4 py-2">{material.name}</td>
                             <td className="px-4 py-2 text-right">{material.quantity}</td>
@@ -331,9 +414,9 @@ export function ReportsPage() {
               {/* Tools */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Herramientas Asignadas</h3>
-                {selectedService.tools.length > 0 ? (
+                {selectedService.tools?.length > 0 ? (
                   <ul className="list-disc list-inside space-y-1">
-                    {selectedService.tools.map((tool, index) => (
+                    {selectedService.tools?.map((tool, index) => (
                       <li key={index} className="text-gray-700">{tool}</li>
                     ))}
                   </ul>
@@ -347,9 +430,9 @@ export function ReportsPage() {
               {/* Evidence */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Evidencias Fotográficas</h3>
-                {selectedService.evidenceImages.length > 0 ? (
+                {selectedService.evidenceImages?.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {selectedService.evidenceImages.map((image, index) => (
+                    {selectedService.evidenceImages?.map((image, index) => (
                       <img
                         key={index}
                         src={image}
@@ -368,6 +451,37 @@ export function ReportsPage() {
                 <p>Este reporte fue generado automáticamente por el Sistema de Gestión de Taller</p>
                 <p className="mt-1">Fecha de generación: {new Date().toLocaleString('es-ES')}</p>
               </div>
+            </div>
+          )}
+          {isGenerated && reportType !== 'service' && (
+            <div className="border rounded-xl p-6 bg-white shadow-sm space-y-4">
+              
+              <h3 className="text-lg font-semibold">
+                Reporte {reportType} ({filteredServices.length} resultados)
+              </h3>
+
+              <div className="space-y-2">
+                {filteredServices.map(service => (
+                  <div
+                    key={service.id}
+                    className="flex justify-between items-center border rounded-lg p-3 hover:bg-gray-50 transition"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        #{service.id} - {service.description || service.requesterName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {service.requesterName} • {service.requesterArea}
+                      </p>
+                    </div>
+
+                    <span className="text-sm text-gray-500">
+                      {formatDate(service.startDate)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
             </div>
           )}
         </CardContent>

@@ -453,21 +453,21 @@ export function getMockTechnicians(): Technician[] {
   return [
     {
       id: '1',
-      name: 'Ana García',
-      phone: '+521234567890',
-      email: 'ana@empresa.com',
-      specialty: 'Mecánico',
-      status: 'busy',
+      nombre: 'Ana García',
+      cargo: 'Técnico',
+      especialidad: 'Mecánico',
+      telefono: '+521234567890',
+      servicios_activos: 3,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     },
     {
       id: '2',
-      name: 'Luis Torres',
-      phone: '+521234567891',
-      email: 'luis@empresa.com',
-      specialty: 'Eléctrico',
-      status: 'available',
+      nombre: 'Luis Torres',
+      cargo: 'Técnico',
+      especialidad: 'Eléctrico',
+      telefono: '+521234567891',
+      servicios_activos: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }

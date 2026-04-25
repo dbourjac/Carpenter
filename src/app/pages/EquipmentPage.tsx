@@ -124,7 +124,7 @@ export function EquipmentPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Equipos y Herramientas
+              Equipos y Utencilios
             </span>
           </h1>
           <p className="text-gray-600 mt-1">Gestión de recursos del taller</p>
@@ -143,7 +143,7 @@ export function EquipmentPage() {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
-                {editingItem ? 'Editar Item' : 'Nuevo Equipo o Herramienta'}
+                {editingItem ? 'Editar Item' : 'Nuevo Equipo o Utensilio'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,7 +169,7 @@ export function EquipmentPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="equipment">Equipo</SelectItem>
-                    <SelectItem value="tool">Herramienta</SelectItem>
+                    <SelectItem value="tool">Utensilio</SelectItem>
                     <SelectItem value="machinery">Maquinaria</SelectItem>
                   </SelectContent>
                 </Select>
@@ -235,7 +235,7 @@ export function EquipmentPage() {
                 <Wrench className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-blue-100">Herramientas</p>
+                <p className="text-sm text-blue-100">Utensilios</p>
                 <p className="text-3xl font-bold">{stats.tools}</p>
               </div>
             </div>
@@ -277,7 +277,7 @@ export function EquipmentPage() {
           <TabsTrigger value="all">Todos</TabsTrigger>
           <TabsTrigger value="machinery">Maquinaria</TabsTrigger>
           <TabsTrigger value="equipment">Equipos</TabsTrigger>
-          <TabsTrigger value="tool">Herramientas</TabsTrigger>
+          <TabsTrigger value="tool">Utensilios</TabsTrigger>
         </TabsList>
 
         <TabsContent value={typeFilter} className="mt-6">
@@ -286,11 +286,11 @@ export function EquipmentPage() {
               <CardTitle>Listado de Recursos</CardTitle>
               <CardDescription>
                 {typeFilter === 'all'
-                  ? 'Todos los equipos y herramientas'
+                  ? 'Todos los equipos y utensilios'
                   : typeFilter === 'equipment'
                   ? 'Maquinaria y equipos'
                   : typeFilter === 'tool'
-                  ? 'Herramientas del taller'
+                  ? 'Utensilios del taller'
                   : 'Maquinaria pesada del taller'}
               </CardDescription>
             </CardHeader>
