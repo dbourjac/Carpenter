@@ -8,8 +8,9 @@ import {
   User,
   Menu,
   X,
-  Settings
+  Users as UsersIcon,
 } from 'lucide-react';
+import logoUnison from '../../styles/logo_unison.png';
 import { Button } from './ui/button';
 import { useState } from 'react';
 import { getCurrentUser } from '../lib/storage';
@@ -35,6 +36,7 @@ export function Layout({ children }: LayoutProps) {
     { name: 'Equipos y Herramientas', href: '/equipment', icon: Wrench },
     { name: 'Reportes', href: '/reports', icon: FileText },
     { name: 'Técnicos', href: '/technicians', icon: User },
+    ...(user?.role === 'admin' ? [{ name: 'Usuarios', href: '/users', icon: UsersIcon }] : []),
   ];
 
   const isActive = (href: string) => {
@@ -64,11 +66,11 @@ export function Layout({ children }: LayoutProps) {
           {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b border-sidebar-border">
             <Link to="/dashboard" className="flex items-center gap-3 group no-hover">
-              <div className="bg-sidebar-primary p-2.5 rounded-xl shadow-lg group-hover:shadow-blue-400/50 transition-all">
-                <Settings className="h-7 w-7 text-white" />
+             <div>
+                <img src={logoUnison} alt="Logo Unison" className="h-7 w-7 object-contain" />
               </div>
               <div>
-                <span className="font-bold text-white text-lg block leading-none">Workshop</span>
+                <span className="font-bold text-white text-lg block leading-none">Agenda de Carpintería Unison</span>
                 <span className="text-blue-300 text-xs">Sistema de Gestión</span>
               </div>
             </Link>
@@ -91,7 +93,7 @@ export function Layout({ children }: LayoutProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{user.name}</p>
                 <p className="text-xs text-blue-300">
-                  {user.role === 'manager' ? 'Jefe de Taller' : 'Técnico'}
+                  {user.role === 'admin' ? 'Administrador' : 'Jefe de Taller'}
                 </p>
               </div>
             </div>
@@ -144,11 +146,11 @@ export function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-sidebar-border bg-sidebar-accent">
-            <p className="text-xs text-blue-300 text-center">
-              Workshop Manager v1.0
-            </p>
-          </div>
+            <div className="p-4 border-t border-sidebar-border bg-sidebar-accent">
+              <p className="text-xs text-blue-300 text-center">
+                Agenda de Carpintería Unison
+              </p>
+            </div>
         </div>
       </aside>
 
@@ -167,9 +169,9 @@ export function Layout({ children }: LayoutProps) {
             </Button>
             <div className="flex items-center gap-2">
               <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-1.5 rounded-lg shadow">
-                <Settings className="h-5 w-5 text-white" />
+                <img src={logoUnison} alt="Logo Unison" className="h-5 w-5 object-contain" />
               </div>
-              <span className="font-bold text-gray-900">Workshop</span>
+              <span className="font-bold text-gray-900">Agenda de Carpintería Unison</span>
             </div>
             <div className="w-10" />
           </div>

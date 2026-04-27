@@ -8,6 +8,7 @@ import { ServiceDetailPage } from './pages/ServiceDetailPage';
 import { EquipmentPage } from './pages/EquipmentPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { UsersPage } from './pages/UsersPage';
 import { getCurrentUser } from './lib/storage';
 import { TechniciansPage } from './pages/TechniciansPage';
 import { TechnicianDetailPage } from './pages/TechnicianDetailPage';
@@ -80,6 +81,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <ProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/users',
+    element: (
+      <ProtectedRoute>
+        <UsersPage />
       </ProtectedRoute>
     ),
   },

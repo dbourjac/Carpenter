@@ -325,7 +325,7 @@ export function ServiceDetailPage() {
         {/* Right Column - Control Panel */}
         <div className="space-y-6">
           {/* Status Control */}
-          <Card className="border-0 shadow-lg sticky top-4">
+          <Card className="border-0 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
               <CardTitle className="text-white">Control del Servicio</CardTitle>
               <CardDescription className="text-blue-100">

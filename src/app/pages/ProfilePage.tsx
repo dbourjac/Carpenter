@@ -47,8 +47,8 @@ export function ProfilePage() {
               <h3 className="text-xl font-semibold text-gray-900">{user.name}</h3>
               <p className="text-gray-600">{user.email}</p>
             </div>
-            <Badge variant={user.role === 'manager' ? 'default' : 'secondary'} className="text-sm">
-              {user.role === 'manager' ? 'Jefe de Taller' : 'Técnico'}
+            <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-sm">
+              {user.role === 'admin' ? 'Administrador' : 'Jefe de Taller'}
             </Badge>
           </div>
 
@@ -61,7 +61,7 @@ export function ProfilePage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Rol</p>
-              <p className="font-medium capitalize">{user.role === 'manager' ? 'Jefe de Taller' : 'Técnico'}</p>
+              <p className="font-medium capitalize">{user.role === 'admin' ? 'Administrador' : 'Jefe de Taller'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Email</p>
@@ -102,13 +102,10 @@ export function ProfilePage() {
               </>
             ) : (
               <>
-                <PermissionItem granted title="Ver servicios asignados" />
-                <PermissionItem granted title="Actualizar estado de servicios asignados" />
-                <PermissionItem granted title="Registrar materiales y herramientas" />
-                <PermissionItem granted title="Cargar evidencias fotográficas" />
-                <PermissionItem granted title="Ver inventario" />
-                <PermissionItem denied title="Asignar técnicos" />
-                <PermissionItem denied title="Eliminar servicios" />
+                <PermissionItem granted title="Registrar y editar jefes de taller" />
+                <PermissionItem granted title="Eliminar jefes de taller" />
+                <PermissionItem granted title="Ver usuarios registrados" />
+                <PermissionItem denied title="Acceso a módulos operativos" />
               </>
             )}
           </div>

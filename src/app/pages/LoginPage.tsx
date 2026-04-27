@@ -116,9 +116,12 @@ export function LoginPage() {
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm">
             <p className="text-blue-900 font-medium mb-2">Credenciales de prueba:</p>
             <div className="space-y-1 text-blue-700">
+              <p><strong>Admin:</strong> admin@workshop.com</p>
               <p><strong>Jefe de Taller:</strong> carlos@workshop.com</p>
-              <p><strong>Técnico:</strong> ana@workshop.com</p>
               <p><strong>Contraseña:</strong> password123</p>
+              <p className="text-xs text-blue-600 mt-2">
+                💡 El Admin puede registrar nuevos jefes de taller en la sección "Usuarios" del menú.
+              </p>
             </div>
           </div>
         </CardContent>

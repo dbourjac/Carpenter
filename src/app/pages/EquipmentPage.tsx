@@ -16,8 +16,49 @@ import {
   deleteEquipmentItem 
 } from '../lib/storage';
 import { EquipmentItem } from '../lib/types';
-import { getTodayDateString, isDateBeforeToday } from '../lib/utils';
 import { toast } from 'sonner';
+
+const toDateTimeLocalValue = (value?: string): string => {
+  if (!value) return '';
+  if (value.includes('T')) return value.slice(0, 16);
+  return `${value}T09:00`;
+};
+
+const getNowLocalDateTimeValue = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const isPastDateTime = (value: string): boolean => {
+  const selected = new Date(value);
+  const now = new Date();
+  now.setSeconds(0, 0);
+  return selected.getTime() < now.getTime();
+};
+
+const parseMaintenanceDate = (value: string): Date => {
+  return value.includes('T') ? new Date(value) : new Date(`${value}T00:00`);
+};
+
+const toStartOfDay = (date: Date): Date => {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+};
+
+const getMaintenanceState = (item: EquipmentItem): 'none' | 'completed' | 'overdue' | 'scheduled' => {
+  if (!item.nextMaintenanceDate) return 'none';
+  if (item.maintenanceCompleted) return 'completed';
+
+  const targetDay = toStartOfDay(parseMaintenanceDate(item.nextMaintenanceDate));
+  const today = toStartOfDay(new Date());
+  return targetDay.getTime() < today.getTime() ? 'overdue' : 'scheduled';
+};
 
 export function EquipmentPage() {
   const [equipment, setEquipment] = useState(getEquipment());
@@ -117,9 +158,14 @@ export function EquipmentPage() {
   };
 
   const openMaintenanceDialog = (item: EquipmentItem) => {
+    if (item.type !== 'machinery') {
+      toast.error('El mantenimiento programado aplica solo para maquinaria');
+      return;
+    }
+
     setMaintenanceItem(item);
     setMaintenanceData({
-      nextMaintenanceDate: item.nextMaintenanceDate || '',
+      nextMaintenanceDate: toDateTimeLocalValue(item.nextMaintenanceDate),
       maintenanceNotes: item.maintenanceNotes || '',
     });
     setMaintenanceDialogOpen(true);
@@ -129,19 +175,19 @@ export function EquipmentPage() {
     e.preventDefault();
 
     if (!maintenanceData.nextMaintenanceDate) {
-      toast.error('La fecha de mantenimiento es requerida');
+      toast.error('La fecha y hora de mantenimiento son requeridas');
       return;
     }
 
-    if (isDateBeforeToday(maintenanceData.nextMaintenanceDate)) {
-      toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
+    if (isPastDateTime(maintenanceData.nextMaintenanceDate)) {
+      toast.error('La fecha y hora de mantenimiento no pueden ser anteriores al momento actual');
       return;
     }
 
     if (maintenanceItem) {
       const updated = updateEquipmentItem(maintenanceItem.id, {
         nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
-        lastMaintenanceDate: new Date().toISOString().split('T')[0],
+        maintenanceCompleted: false,
         maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
       });
 
@@ -149,26 +195,52 @@ export function EquipmentPage() {
         setEquipment(getEquipment());
         toast.success('Mantenimiento programado correctamente');
         setMaintenanceDialogOpen(false);
-        checkMaintenanceNotifications();
+        checkMaintenanceNotifications(getEquipment());
       }
     }
   };
 
-  const checkMaintenanceNotifications = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const handleMarkMaintenanceCompleted = (item: EquipmentItem) => {
+    if (item.type !== 'machinery') {
+      toast.error('Solo la maquinaria puede marcar mantenimiento');
+      return;
+    }
 
-    equipment.forEach(item => {
-      if (item.nextMaintenanceDate) {
-        const maintenanceDate = new Date(item.nextMaintenanceDate);
-        maintenanceDate.setHours(0, 0, 0, 0);
+    if (!item.nextMaintenanceDate) {
+      toast.error('No hay mantenimiento programado para este item');
+      return;
+    }
 
-        const daysUntilMaintenance = Math.floor(
-          (maintenanceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    const updated = updateEquipmentItem(item.id, {
+      maintenanceCompleted: true,
+      lastMaintenanceDate: new Date().toISOString(),
+    });
+
+    if (updated) {
+      setEquipment(getEquipment());
+      toast.success('Mantenimiento marcado como completado');
+    }
+  };
+
+  const checkMaintenanceNotifications = (items: EquipmentItem[] = equipment) => {
+    const now = new Date();
+    const today = toStartOfDay(now);
+
+    items.forEach(item => {
+      if (item.type === 'machinery' && item.nextMaintenanceDate) {
+        const maintenanceDate = parseMaintenanceDate(item.nextMaintenanceDate);
+        const maintenanceDay = toStartOfDay(maintenanceDate);
+
+        const hoursUntilMaintenance = Math.floor(
+          (maintenanceDate.getTime() - now.getTime()) / (1000 * 60 * 60)
         );
+        const daysUntilMaintenance = Math.ceil((maintenanceDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (daysUntilMaintenance === 0) {
-          toast.error(`⚠️ Hoy vence el mantenimiento de: ${item.name}`, { duration: 10000 });
+        // Atrasado solo por fecha: si ya pasó el día calendario y sigue pendiente.
+        if (!item.maintenanceCompleted && maintenanceDay.getTime() < today.getTime()) {
+          toast.error(`⏰ Mantenimiento atrasado: ${item.name}`, { duration: 10000 });
+        } else if (!item.maintenanceCompleted && daysUntilMaintenance === 0) {
+         //  toast.error(`⚠️ Mantenimiento programado para hoy: ${item.name}`, { duration: 10000 });
         } else if (daysUntilMaintenance > 0 && daysUntilMaintenance <= 3) {
           toast.warning(`📅 Próximo a vencer (${daysUntilMaintenance}d): ${item.name}`, { duration: 8000 });
         }
@@ -294,13 +366,13 @@ export function EquipmentPage() {
                 <Label htmlFor="maintenanceDate">Próxima fecha de mantenimiento *</Label>
                 <input
                   id="maintenanceDate"
-                  type="date"
+                  type="datetime-local"
                   className="w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
                   value={maintenanceData.nextMaintenanceDate}
-                  min={getTodayDateString()}
+                  min={getNowLocalDateTimeValue()}
                   onChange={(e) => {
-                    if (isDateBeforeToday(e.target.value)) {
-                      toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
+                    if (isPastDateTime(e.target.value)) {
+                      toast.error('La fecha y hora de mantenimiento no pueden ser anteriores al momento actual');
                       return;
                     }
                     setMaintenanceData(prev => ({ ...prev, nextMaintenanceDate: e.target.value }))
@@ -452,12 +524,18 @@ export function EquipmentPage() {
                       {item.description || 'Sin descripción'}
                     </p>
 
-                    {item.nextMaintenanceDate && (
+                    {item.type === 'machinery' && item.nextMaintenanceDate && (
                       <div className="mb-3 p-2 bg-blue-50 rounded-lg">
                         <p className="text-xs text-gray-600 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          Próx. mantenimiento: {new Date(item.nextMaintenanceDate).toLocaleDateString('es-ES')}
+                          Próx. mantenimiento: {parseMaintenanceDate(item.nextMaintenanceDate).toLocaleString('es-ES')}
                         </p>
+                        {getMaintenanceState(item) === 'overdue' && (
+                          <p className="text-xs text-red-700 font-medium mt-1">Mantenimiento atrasado</p>
+                        )}
+                        {getMaintenanceState(item) === 'completed' && (
+                          <p className="text-xs text-green-700 font-medium mt-1">Mantenimiento completado</p>
+                        )}
                         {item.maintenanceNotes && (
                           <p className="text-xs text-gray-700 mt-1">{item.maintenanceNotes}</p>
                         )}
@@ -483,14 +561,27 @@ export function EquipmentPage() {
                           </>
                         )}
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openMaintenanceDialog(item)}
-                        title="Programar mantenimiento"
-                      >
-                        <Clock className="h-4 w-4" />
-                      </Button>
+                      {item.type === 'machinery' && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openMaintenanceDialog(item)}
+                            title="Programar mantenimiento"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarkMaintenanceCompleted(item)}
+                            title="Marcar mantenimiento completado"
+                            disabled={!item.nextMaintenanceDate || !!item.maintenanceCompleted}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"

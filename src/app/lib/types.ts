@@ -1,7 +1,7 @@
 export type ServiceType = 'preventive' | 'corrective' | 'installation' | 'other';
 export type ServiceStatus = 'pending' | 'in-progress' | 'completed';
 export type ServicePriority = 'low' | 'medium' | 'high';
-export type UserRole = 'manager' | 'technician';
+export type UserRole = 'admin' | 'manager';
 
 export interface User {
   id: string;
@@ -49,6 +49,7 @@ export interface EquipmentItem {
   description?: string;
   nextMaintenanceDate?: string;
   lastMaintenanceDate?: string;
+  maintenanceCompleted?: boolean;
   maintenanceNotes?: string;
 }
 

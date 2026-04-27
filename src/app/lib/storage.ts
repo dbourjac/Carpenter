@@ -4,32 +4,115 @@ const STORAGE_KEYS = {
   SERVICES: 'workshop_services',
   EQUIPMENT: 'workshop_equipment',
   CURRENT_USER: 'workshop_current_user',
+  USERS: 'workshop_users',
 };
 
+interface UserCredentials extends User {
+  password: string;
+}
+
 // Mock users for authentication
-const MOCK_USERS: User[] = [
+const MOCK_USERS: UserCredentials[] = [
   {
     id: '1',
-    name: 'Carlos Mendoza',
-    email: 'carlos@workshop.com',
-    role: 'manager',
+    name: 'Admin Sistema',
+    email: 'admin@workshop.com',
+    role: 'admin',
     phone: '+1234567890',
+    password: 'password123',
   },
   {
     id: '2',
-    name: 'Ana García',
-    email: 'ana@workshop.com',
-    role: 'technician',
+    name: 'Carlos Mendoza',
+    email: 'carlos@workshop.com',
+    role: 'manager',
     phone: '+1234567891',
+    password: 'password123',
   },
 ];
 
+// User management
+export const getAllUsers = (): User[] => {
+  const stored = localStorage.getItem(STORAGE_KEYS.USERS);
+  if (stored) {
+    const users: UserCredentials[] = JSON.parse(stored);
+    return users.map(({ password, ...user }) => user);
+  }
+  return MOCK_USERS.map(({ password, ...user }) => user);
+};
+
+export const getUserById = (id: string): User | undefined => {
+  return getAllUsers().find(user => user.id === id);
+};
+
+export const getUsersWithCredentials = (): UserCredentials[] => {
+  const stored = localStorage.getItem(STORAGE_KEYS.USERS);
+  return stored ? JSON.parse(stored) : MOCK_USERS;
+};
+
+export const createUser = (userData: Omit<UserCredentials, 'id'>): User => {
+  const users = getUsersWithCredentials();
+
+  // Verificar que el email no exista
+  if (users.some(u => u.email === userData.email)) {
+    throw new Error('El email ya está registrado');
+  }
+
+  const newUser: UserCredentials = {
+    ...userData,
+    id: Date.now().toString(),
+  };
+
+  users.push(newUser);
+  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+  const { password, ...userWithoutPassword } = newUser;
+  return userWithoutPassword;
+};
+
+export const updateUser = (
+  id: string,
+  updates: Partial<Omit<UserCredentials, 'id'>>
+): User | null => {
+  const users = getUsersWithCredentials();
+  const index = users.findIndex(user => user.id === id);
+
+  if (index === -1) return null;
+
+  const nextEmail = updates.email ?? users[index].email;
+  if (users.some(user => user.email === nextEmail && user.id !== id)) {
+    throw new Error('El email ya está registrado');
+  }
+
+  users[index] = {
+    ...users[index],
+    ...updates,
+  };
+
+  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+  const { password, ...userWithoutPassword } = users[index];
+  return userWithoutPassword;
+};
+
+export const deleteUser = (id: string): boolean => {
+  const users = getUsersWithCredentials();
+  const filtered = users.filter(user => user.id !== id);
+
+  if (filtered.length === users.length) return false;
+
+  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filtered));
+  return true;
+};
+
 // Authentication
 export const login = (email: string, password: string): User | null => {
-  const user = MOCK_USERS.find(u => u.email === email);
+  const users = getUsersWithCredentials();
+  const user = users.find(u => u.email === email);
   if (user && password === 'password123') {
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-    return user;
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
   return null;
 };
