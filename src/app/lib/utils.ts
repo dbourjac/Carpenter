@@ -9,6 +9,19 @@ export const formatDate = (dateString: string): string => {
   });
 };
 
+export const getTodayDateString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+export const isDateBeforeToday = (dateString: string): boolean => {
+  return dateString < getTodayDateString();
+};
+
 export const getStatusLabel = (status: ServiceStatus): string => {
   const labels: Record<ServiceStatus, string> = {
     'pending': 'Pendiente',

@@ -10,7 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Textarea } from '../components/ui/textarea';
 import { getServiceById, updateService, getEquipment } from '../lib/storage';
-import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate } from '../lib/utils';
+import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate, getTodayDateString, isDateBeforeToday } from '../lib/utils';
 import { ServiceStatus, ServicePriority } from '../lib/types';
 import { toast } from 'sonner';
 
@@ -39,7 +39,12 @@ export function ServiceDetailPage() {
   if (!service) return null;
 
   const handleUpdateBasicInfo = () => {
-    const updated = updateService(service.id, { 
+    if (estimatedCompletion && isDateBeforeToday(estimatedCompletion)) {
+      toast.error('La fecha estimada de finalización no puede ser anterior a hoy');
+      return;
+    }
+
+    const updated = updateService(service.id, {
       status, 
       priority,
       assignedTechnician: assignedTechnician || undefined,
@@ -397,6 +402,7 @@ export function ServiceDetailPage() {
                   type="date"
                   value={estimatedCompletion}
                   onChange={(e) => setEstimatedCompletion(e.target.value)}
+                  min={getTodayDateString()}
                 />
               </div>
 

@@ -16,6 +16,7 @@ import {
   deleteEquipmentItem 
 } from '../lib/storage';
 import { EquipmentItem } from '../lib/types';
+import { getTodayDateString, isDateBeforeToday } from '../lib/utils';
 import { toast } from 'sonner';
 
 export function EquipmentPage() {
@@ -132,12 +133,7 @@ export function EquipmentPage() {
       return;
     }
 
-    const selectedDate = new Date(maintenanceData.nextMaintenanceDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    if (selectedDate < today) {
+    if (isDateBeforeToday(maintenanceData.nextMaintenanceDate)) {
       toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
       return;
     }
@@ -301,13 +297,9 @@ export function EquipmentPage() {
                   type="date"
                   className="w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
                   value={maintenanceData.nextMaintenanceDate}
+                  min={getTodayDateString()}
                   onChange={(e) => {
-                    const selectedDate = new Date(e.target.value);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    selectedDate.setHours(0, 0, 0, 0);
-
-                    if (selectedDate < today) {
+                    if (isDateBeforeToday(e.target.value)) {
                       toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
                       return;
                     }

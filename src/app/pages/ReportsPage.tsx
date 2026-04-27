@@ -25,7 +25,7 @@ export function ReportsPage() {
 
     // Validar fechas
     if (reportType === 'range' && dateRange.start && dateRange.end) {
-      if (new Date(dateRange.end) < new Date(dateRange.start)) {
+      if (dateRange.start > dateRange.end) {
         toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
         return;
       }
@@ -253,18 +253,8 @@ export function ReportsPage() {
                     className="w-full mt-1 border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
                     value={dateRange.start}
                     onChange={(e) => {
-                      const selectedDate = new Date(e.target.value);
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      selectedDate.setHours(0, 0, 0, 0);
-
-                      if (selectedDate < today) {
-                        toast.error('La fecha de inicio no puede ser anterior a hoy');
-                        return;
-                      }
-
                       const newStart = e.target.value;
-                      if (dateRange.end && new Date(dateRange.end) < new Date(newStart)) {
+                          if (dateRange.end && newStart > dateRange.end) {
                         toast.error('La fecha de inicio no puede ser después de la fecha de fin');
                         return;
                       }
@@ -281,18 +271,8 @@ export function ReportsPage() {
                     className="w-full mt-1 border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
                     value={dateRange.end}
                     onChange={(e) => {
-                      const selectedDate = new Date(e.target.value);
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      selectedDate.setHours(0, 0, 0, 0);
-
-                      if (selectedDate < today) {
-                        toast.error('La fecha de fin no puede ser anterior a hoy');
-                        return;
-                      }
-
                       const newEnd = e.target.value;
-                      if (dateRange.start && new Date(newEnd) < new Date(dateRange.start)) {
+                          if (dateRange.start && newEnd < dateRange.start) {
                         toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
                         return;
                       }

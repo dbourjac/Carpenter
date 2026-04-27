@@ -8,6 +8,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { createService } from '../lib/storage';
+import { getTodayDateString, isDateBeforeToday } from '../lib/utils';
 import { ServiceType, ServicePriority } from '../lib/types';
 import { toast } from 'sonner';
 
@@ -51,6 +52,9 @@ export function ServiceCreatePage() {
     if (!formData.endDate) newErrors.endDate = 'La fecha de fin es requerida';
     if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
       newErrors.endDate = 'La fecha de fin debe ser posterior a la de inicio';
+    }
+    if (formData.estimatedCompletionDate && isDateBeforeToday(formData.estimatedCompletionDate)) {
+      newErrors.estimatedCompletionDate = 'La fecha estimada de finalización no puede ser anterior a hoy';
     }
 
     setErrors(newErrors);
@@ -218,8 +222,12 @@ export function ServiceCreatePage() {
                   type="date"
                   value={formData.estimatedCompletionDate}
                   onChange={(e) => updateField('estimatedCompletionDate', e.target.value)}
-                  className="h-11"
+                  min={getTodayDateString()}
+                  className={`h-11 ${errors.estimatedCompletionDate ? 'border-red-500' : ''}`}
                 />
+                {errors.estimatedCompletionDate && (
+                  <p className="text-sm text-red-600">{errors.estimatedCompletionDate}</p>
+                )}
               </div>
             </div>
 
