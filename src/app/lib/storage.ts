@@ -1,4 +1,4 @@
-import { ServiceRequest, EquipmentItem, User } from './types';
+import { ServiceRequest, EquipmentItem, User, Technician } from './types';
 
 const STORAGE_KEYS = {
   SERVICES: 'workshop_services',
@@ -329,73 +329,81 @@ function getMockServices(): ServiceRequest[] {
 
 function getMockEquipment(): EquipmentItem[] {
   return [
-    { 
-      id: '1', 
-      name: 'Taladro Industrial Makita', 
-      type: 'equipment', 
+    {
+      id: '1',
+      name: 'Taladro Industrial Makita',
+      type: 'equipment',
       available: true,
-      description: 'Taladro de impacto 18V con batería'
+      description: 'Taladro de impacto 18V con batería',
+      nextMaintenanceDate: '2026-05-10',
+      lastMaintenanceDate: '2026-04-10'
     },
-    { 
-      id: '2', 
-      name: 'Sierra Circular Dewalt', 
-      type: 'equipment', 
+    {
+      id: '2',
+      name: 'Sierra Circular Dewalt',
+      type: 'equipment',
       available: true,
-      description: 'Sierra circular 7.25" con guía láser'
+      description: 'Sierra circular 7.25" con guía láser',
+      nextMaintenanceDate: '2026-05-15',
+      lastMaintenanceDate: '2026-04-15'
     },
-    { 
-      id: '3', 
-      name: 'Compresor de Aire', 
-      type: 'equipment', 
+    {
+      id: '3',
+      name: 'Compresor de Aire',
+      type: 'equipment',
       available: false,
-      description: 'Compresor portátil 50L - En mantenimiento'
+      description: 'Compresor portátil 50L - En mantenimiento',
+      nextMaintenanceDate: '2026-04-28',
+      lastMaintenanceDate: '2026-03-28'
     },
-    { 
-      id: '4', 
-      name: 'Soldadora MIG', 
-      type: 'equipment', 
+    {
+      id: '4',
+      name: 'Soldadora MIG',
+      type: 'equipment',
       available: true,
-      description: 'Soldadora MIG/MAG 200A'
+      description: 'Soldadora MIG/MAG 200A',
+      nextMaintenanceDate: '2026-05-20',
+      lastMaintenanceDate: '2026-04-20'
     },
-    { 
-      id: '5', 
-      name: 'Set de Llaves Allen', 
-      type: 'tool', 
+    {
+      id: '5',
+      name: 'Set de Llaves Allen',
+      type: 'tool',
       available: true,
       description: 'Juego de llaves hexagonales métricas'
     },
-    { 
-      id: '6', 
-      name: 'Llave de Torque Digital', 
-      type: 'tool', 
+    {
+      id: '6',
+      name: 'Llave de Torque Digital',
+      type: 'tool',
       available: true,
       description: 'Llave dinamométrica 5-200 Nm'
     },
-    { 
-      id: '7', 
-      name: 'Multímetro Digital', 
-      type: 'tool', 
+    {
+      id: '7',
+      name: 'Multímetro Digital',
+      type: 'tool',
       available: true,
       description: 'Multímetro profesional Fluke'
     },
-    { 
-      id: '8', 
-      name: 'Kit de Destornilladores', 
-      type: 'tool', 
+    {
+      id: '8',
+      name: 'Kit de Destornilladores',
+      type: 'tool',
       available: true,
       description: 'Set de 24 piezas con estuche'
     },
-    { 
-      id: '9', 
-      name: 'Escalera Telescópica', 
-      type: 'equipment', 
+    {
+      id: '9',
+      name: 'Escalera Telescópica',
+      type: 'equipment',
       available: true,
       description: 'Escalera extensible 3.6m'
     },
-    { 
-      id: '10', 
-      name: 'Amoladora Angular', 
-      type: 'equipment', 
+    {
+      id: '10',
+      name: 'Amoladora Angular',
+      type: 'equipment',
       available: false,
       description: 'Amoladora 9" - Asignada a otro servicio'
     },
@@ -404,21 +412,28 @@ function getMockEquipment(): EquipmentItem[] {
       name: 'Máquina CNC Haas',
       type: 'machinery',
       available: true,
-      description: 'Centro de mecanizado CNC de alta precisión'
+      description: 'Centro de mecanizado CNC de alta precisión',
+      nextMaintenanceDate: '2026-05-05',
+      lastMaintenanceDate: '2026-04-05',
+      maintenanceNotes: 'Calibración y lubricación'
     },
     {
       id: '12',
       name: 'Máquina de Inyección Plástica',
       type: 'machinery',
       available: false,
-      description: 'Máquina industrial para moldeado por inyección'
+      description: 'Máquina industrial para moldeado por inyección',
+      nextMaintenanceDate: '2026-05-12',
+      lastMaintenanceDate: '2026-04-12'
     },
     {
       id: '13',
       name: 'Máquina Cortadora Láser',
       type: 'machinery',
       available: true,
-      description: 'Corte de precisión con láser industrial'
+      description: 'Corte de precisión con láser industrial',
+      nextMaintenanceDate: '2026-05-08',
+      lastMaintenanceDate: '2026-04-08'
     }
   ];
 }

@@ -23,11 +23,19 @@ export function ReportsPage() {
   const handleGeneratePDF = () => {
     const data = getFilteredServices();
 
+    // Validar fechas
+    if (reportType === 'range' && dateRange.start && dateRange.end) {
+      if (new Date(dateRange.end) < new Date(dateRange.start)) {
+        toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
+        return;
+      }
+    }
+
     if (!isGenerated) {
       toast.error('Primero genera el reporte');
       return;
     }
-    
+
     // In a real app, this would generate and download a PDF
     toast.success('Generando reporte PDF... (función de demostración)');
   };
@@ -173,15 +181,39 @@ export function ReportsPage() {
             {reportType !== 'service' && (
               <Button
                 onClick={() => {
-                  if (reportType === 'range' && (!dateRange.start || !dateRange.end)) {
-                    toast.error('Selecciona ambas fechas');
-                    return;
+                  if (reportType === 'range') {
+                    if (!dateRange.start || !dateRange.end) {
+                      toast.error('Selecciona ambas fechas');
+                      return;
+                    }
+
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const startDate = new Date(dateRange.start);
+                    startDate.setHours(0, 0, 0, 0);
+                    const endDate = new Date(dateRange.end);
+                    endDate.setHours(0, 0, 0, 0);
+
+                    if (startDate < today) {
+                      toast.error('La fecha de inicio no puede ser anterior a hoy');
+                      return;
+                    }
+
+                    if (endDate < today) {
+                      toast.error('La fecha de fin no puede ser anterior a hoy');
+                      return;
+                    }
+
+                    if (endDate < startDate) {
+                      toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
+                      return;
+                    }
                   }
 
                   setIsGenerated(true);
                   toast.success('Reporte generado');
                 }}
-              > 
+              >
                 Generar
               </Button>
             )}
@@ -212,7 +244,7 @@ export function ReportsPage() {
           <div className="space-y-4">
             {reportType === 'range' && (
               <div className="flex flex-col sm:flex-row gap-3">
-                
+
                 {/* Fecha inicio */}
                 <div className="flex-1">
                   <label className="text-sm text-gray-600">Fecha inicio</label>
@@ -220,9 +252,24 @@ export function ReportsPage() {
                     type="date"
                     className="w-full mt-1 border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
                     value={dateRange.start}
-                    onChange={(e) =>
-                      setDateRange(prev => ({ ...prev, start: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      const selectedDate = new Date(e.target.value);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      selectedDate.setHours(0, 0, 0, 0);
+
+                      if (selectedDate < today) {
+                        toast.error('La fecha de inicio no puede ser anterior a hoy');
+                        return;
+                      }
+
+                      const newStart = e.target.value;
+                      if (dateRange.end && new Date(dateRange.end) < new Date(newStart)) {
+                        toast.error('La fecha de inicio no puede ser después de la fecha de fin');
+                        return;
+                      }
+                      setDateRange(prev => ({ ...prev, start: newStart }))
+                    }}
                   />
                 </div>
 
@@ -233,9 +280,24 @@ export function ReportsPage() {
                     type="date"
                     className="w-full mt-1 border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
                     value={dateRange.end}
-                    onChange={(e) =>
-                      setDateRange(prev => ({ ...prev, end: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      const selectedDate = new Date(e.target.value);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      selectedDate.setHours(0, 0, 0, 0);
+
+                      if (selectedDate < today) {
+                        toast.error('La fecha de fin no puede ser anterior a hoy');
+                        return;
+                      }
+
+                      const newEnd = e.target.value;
+                      if (dateRange.start && new Date(newEnd) < new Date(dateRange.start)) {
+                        toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
+                        return;
+                      }
+                      setDateRange(prev => ({ ...prev, end: newEnd }))
+                    }}
                   />
                 </div>
 

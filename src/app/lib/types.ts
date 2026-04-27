@@ -47,6 +47,9 @@ export interface EquipmentItem {
   type: 'equipment' | 'tool' | 'machinery';
   available: boolean;
   description?: string;
+  nextMaintenanceDate?: string;
+  lastMaintenanceDate?: string;
+  maintenanceNotes?: string;
 }
 
 export interface Technician {

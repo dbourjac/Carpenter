@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Edit, Trash2, Wrench, CheckCircle, XCircle, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, Wrench, CheckCircle, XCircle, Settings, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -23,6 +23,8 @@ export function EquipmentPage() {
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [maintenanceItem, setMaintenanceItem] = useState<EquipmentItem | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,6 +32,16 @@ export function EquipmentPage() {
     available: true,
     description: '',
   });
+
+  const [maintenanceData, setMaintenanceData] = useState({
+    nextMaintenanceDate: '',
+    maintenanceNotes: '',
+  });
+
+  // Check maintenance notifications on component mount
+  useEffect(() => {
+    checkMaintenanceNotifications();
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -101,6 +113,71 @@ export function EquipmentPage() {
       setEquipment(getEquipment());
       toast.success(updated.available ? 'Marcado como disponible' : 'Marcado como no disponible');
     }
+  };
+
+  const openMaintenanceDialog = (item: EquipmentItem) => {
+    setMaintenanceItem(item);
+    setMaintenanceData({
+      nextMaintenanceDate: item.nextMaintenanceDate || '',
+      maintenanceNotes: item.maintenanceNotes || '',
+    });
+    setMaintenanceDialogOpen(true);
+  };
+
+  const handleMaintenanceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!maintenanceData.nextMaintenanceDate) {
+      toast.error('La fecha de mantenimiento es requerida');
+      return;
+    }
+
+    const selectedDate = new Date(maintenanceData.nextMaintenanceDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
+      return;
+    }
+
+    if (maintenanceItem) {
+      const updated = updateEquipmentItem(maintenanceItem.id, {
+        nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
+        lastMaintenanceDate: new Date().toISOString().split('T')[0],
+        maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
+      });
+
+      if (updated) {
+        setEquipment(getEquipment());
+        toast.success('Mantenimiento programado correctamente');
+        setMaintenanceDialogOpen(false);
+        checkMaintenanceNotifications();
+      }
+    }
+  };
+
+  const checkMaintenanceNotifications = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    equipment.forEach(item => {
+      if (item.nextMaintenanceDate) {
+        const maintenanceDate = new Date(item.nextMaintenanceDate);
+        maintenanceDate.setHours(0, 0, 0, 0);
+
+        const daysUntilMaintenance = Math.floor(
+          (maintenanceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (daysUntilMaintenance === 0) {
+          toast.error(`⚠️ Hoy vence el mantenimiento de: ${item.name}`, { duration: 10000 });
+        } else if (daysUntilMaintenance > 0 && daysUntilMaintenance <= 3) {
+          toast.warning(`📅 Próximo a vencer (${daysUntilMaintenance}d): ${item.name}`, { duration: 8000 });
+        }
+      }
+    });
   };
 
   const filteredEquipment =
@@ -210,9 +287,61 @@ export function EquipmentPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
 
-      {/* Stats */}
+        <Dialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Programar Mantenimiento - {maintenanceItem?.name}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleMaintenanceSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="maintenanceDate">Próxima fecha de mantenimiento *</Label>
+                <input
+                  id="maintenanceDate"
+                  type="date"
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
+                  value={maintenanceData.nextMaintenanceDate}
+                  onChange={(e) => {
+                    const selectedDate = new Date(e.target.value);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    selectedDate.setHours(0, 0, 0, 0);
+
+                    if (selectedDate < today) {
+                      toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
+                      return;
+                    }
+                    setMaintenanceData(prev => ({ ...prev, nextMaintenanceDate: e.target.value }))
+                  }}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maintenanceNotes">Notas de mantenimiento</Label>
+                <Textarea
+                  id="maintenanceNotes"
+                  placeholder="Detalles sobre el tipo de mantenimiento..."
+                  value={maintenanceData.maintenanceNotes}
+                  onChange={(e) =>
+                    setMaintenanceData(prev => ({ ...prev, maintenanceNotes: e.target.value }))
+                  }
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button type="button" variant="outline" onClick={() => setMaintenanceDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                  Guardar Mantenimiento
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white">
           <CardContent className="pt-6">
@@ -331,6 +460,18 @@ export function EquipmentPage() {
                       {item.description || 'Sin descripción'}
                     </p>
 
+                    {item.nextMaintenanceDate && (
+                      <div className="mb-3 p-2 bg-blue-50 rounded-lg">
+                        <p className="text-xs text-gray-600 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Próx. mantenimiento: {new Date(item.nextMaintenanceDate).toLocaleDateString('es-ES')}
+                        </p>
+                        {item.maintenanceNotes && (
+                          <p className="text-xs text-gray-700 mt-1">{item.maintenanceNotes}</p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -349,6 +490,14 @@ export function EquipmentPage() {
                             Disponible
                           </>
                         )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openMaintenanceDialog(item)}
+                        title="Programar mantenimiento"
+                      >
+                        <Clock className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
