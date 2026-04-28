@@ -229,3 +229,20 @@
   aside a:not(.active):not(.no-hover):hover {
     background-color: rgba(59, 130, 246, 0.25) !important;
   }
+
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+
+    .print-area, .print-area * {
+      visibility: visible;
+    }
+
+    .print-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+  }

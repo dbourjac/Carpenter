@@ -7,13 +7,14 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { createService } from '../lib/storage';
+import { createService, getTechnicians } from '../lib/storage';
 import { getTodayDateString, isDateBeforeToday } from '../lib/utils';
 import { ServiceType, ServicePriority } from '../lib/types';
 import { toast } from 'sonner';
 
 export function ServiceCreatePage() {
   const navigate = useNavigate();
+  const technicians = getTechnicians();
   const [formData, setFormData] = useState({
     name: '',
     type: 'corrective' as ServiceType,
@@ -315,14 +316,25 @@ export function ServiceCreatePage() {
           </CardHeader>
           <CardContent className="pt-6 space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="assignedTechnician">Técnico Asignado *</Label>
-              <Input
-                id="assignedTechnician"
-                placeholder="Nombre del técnico responsable"
+              <Select
                 value={formData.assignedTechnician}
-                onChange={(e) => updateField('assignedTechnician', e.target.value)}
-                className={`h-11 ${errors.assignedTechnician ? 'border-red-500' : ''}`}
-              />
+                onValueChange={(value) => updateField('assignedTechnician', value)}
+              >
+                <SelectTrigger
+                  id="assignedTechnician"
+                  className={`h-11 ${errors.assignedTechnician ? 'border-red-500' : ''}`}
+                >
+                  <SelectValue placeholder="Selecciona un técnico" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {technicians.map((tech) => (
+                    <SelectItem key={tech.id} value={tech.nombre}>
+                      {tech.nombre} — {tech.especialidad}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {errors.assignedTechnician && (
                 <p className="text-sm text-red-600">{errors.assignedTechnician}</p>
               )}

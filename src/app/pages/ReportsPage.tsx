@@ -21,34 +21,111 @@ export function ReportsPage() {
   const selectedService = services.find(s => s.id === selectedServiceId);
 
   const handleGeneratePDF = () => {
-    const data = getFilteredServices();
-
-    // Validar fechas
-    if (reportType === 'range' && dateRange.start && dateRange.end) {
-      if (dateRange.start > dateRange.end) {
-        toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
-        return;
-      }
-    }
-
     if (!isGenerated) {
       toast.error('Primero genera el reporte');
       return;
     }
 
-    // In a real app, this would generate and download a PDF
-    toast.success('Generando reporte PDF... (función de demostración)');
+    window.print();
   };
 
   const handleGenerateExcel = () => {
-    toast.success('Generando reporte Excel... (demo)');
+    if (!isGenerated) {
+      toast.error('Primero genera el reporte');
+      return;
+    }
+
+    const data = getFilteredServices();
+
+    let htmlContent = `
+      <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          body { font-family: Arial; padding: 20px; }
+          h1 { text-align: center; }
+          .section { margin-top: 20px; }
+          .label { font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          td, th { border: 1px solid #ccc; padding: 6px; }
+        </style>
+      </head>
+      <body>
+        <h1>Reporte de Servicios</h1>
+        <p>Generado el ${new Date().toLocaleDateString('es-ES')}</p>
+    `;
+
+    data.forEach(s => {
+      htmlContent += `
+        <div class="section">
+          <h2>Servicio #${s.id}</h2>
+
+          <p><span class="label">Tipo:</span> ${getTypeLabel(s.type)}</p>
+          <p><span class="label">Estado:</span> ${getStatusLabel(s.status)}</p>
+          <p><span class="label">Técnico:</span> ${s.assignedTechnician || 'No asignado'}</p>
+          <p><span class="label">Fecha inicio:</span> ${formatDate(s.startDate)}</p>
+          <p><span class="label">Fecha fin:</span> ${formatDate(s.endDate)}</p>
+
+          <p><span class="label">Descripción:</span> ${s.description || 'N/A'}</p>
+
+          <div class="section">
+            <h3>Solicitante</h3>
+            <p>${s.requesterName} - ${s.requesterArea}</p>
+            <p>${s.requesterPhone} - ${s.requesterEmail}</p>
+          </div>
+
+          <div class="section">
+            <h3>Materiales</h3>
+            ${
+              s.materials?.length
+                ? `<table>
+                    <tr><th>Material</th><th>Cantidad</th><th>Unidad</th></tr>
+                    ${s.materials.map(m => `
+                      <tr>
+                        <td>${m.name}</td>
+                        <td>${m.quantity}</td>
+                        <td>${m.unit}</td>
+                      </tr>
+                    `).join('')}
+                  </table>`
+                : `<p>No se registraron materiales</p>`
+            }
+          </div>
+
+          <div class="section">
+            <h3>Herramientas</h3>
+            ${
+              s.tools?.length
+                ? `<ul>${s.tools.map(t => `<li>${t}</li>`).join('')}</ul>`
+                : `<p>No se registraron herramientas</p>`
+            }
+          </div>
+
+          <hr/>
+        </div>
+      `;
+    });
+
+    htmlContent += `</body></html>`;
+
+    const blob = new Blob(["\uFEFF" + htmlContent], {
+      type: 'application/vnd.ms-excel'
+    });
+
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'reporte_servicios.xls';
+    link.click();
+
+    toast.success('Reporte Excel generado');
   };
 
   const handlePrint = () => {
-    if (!selectedService) {
-      toast.error('Seleccione un servicio primero');
+    if (!isGenerated) {
+      toast.error('Primero genera el reporte');
       return;
     }
+
     window.print();
   };
 
@@ -194,16 +271,6 @@ export function ReportsPage() {
                     const endDate = new Date(dateRange.end);
                     endDate.setHours(0, 0, 0, 0);
 
-                    if (startDate < today) {
-                      toast.error('La fecha de inicio no puede ser anterior a hoy');
-                      return;
-                    }
-
-                    if (endDate < today) {
-                      toast.error('La fecha de fin no puede ser anterior a hoy');
-                      return;
-                    }
-
                     if (endDate < startDate) {
                       toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
                       return;
@@ -211,6 +278,10 @@ export function ReportsPage() {
                   }
 
                   setIsGenerated(true);
+                  if (getFilteredServices().length === 0) {
+                    toast.error('No hay servicios en este rango');
+                    return;
+                  }
                   toast.success('Reporte generado');
                 }}
               >
@@ -329,14 +400,9 @@ export function ReportsPage() {
               </div>
             )}
             <div className="flex gap-2">
-              <Button onClick={handlePrint} variant="outline" disabled={!isGenerated}>
-                <Printer className="mr-2 h-4 w-4" />
-                Imprimir
-              </Button>
-
               <Button onClick={handleGeneratePDF} disabled={!isGenerated}>
                 <Download className="mr-2 h-4 w-4" />
-                Exportar PDF
+                Imprimir / Guardar PDF
               </Button>
 
               <Button onClick={handleGenerateExcel} variant="outline" disabled={!isGenerated}>
@@ -347,7 +413,7 @@ export function ReportsPage() {
           </div>
 
           {isGenerated && reportType === 'service' && selectedService && (
-            <div className="border rounded-xl p-8 space-y-8 bg-white shadow-sm print:border-0">
+            <div className="print-area border rounded-xl p-8 space-y-8 bg-white shadow-sm print:border-0">
               {/* Report Header */}
               <div className="text-center border-b pb-6">
                 <h2 className="text-2xl font-bold text-gray-900">REPORTE DE SERVICIO</h2>
@@ -496,32 +562,55 @@ export function ReportsPage() {
             </div>
           )}
           {isGenerated && reportType !== 'service' && (
-            <div className="border rounded-xl p-6 bg-white shadow-sm space-y-4">
-              
-              <h3 className="text-lg font-semibold">
-                Reporte {reportType} ({filteredServices.length} resultados)
-              </h3>
+            <div className="print-area border rounded-xl p-8 bg-white shadow-sm space-y-6 print:border-0">
 
-              <div className="space-y-2">
-                {filteredServices.map(service => (
-                  <div
-                    key={service.id}
-                    className="flex justify-between items-center border rounded-lg p-3 hover:bg-gray-50 transition"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        #{service.id} - {service.description || service.requesterName}
+              {/* HEADER */}
+              <div className="text-center border-b pb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  REPORTE DE SERVICIOS
+                </h2>
+                <p className="text-gray-600 mt-2">
+                  Sistema de Gestión de Taller
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Generado el {new Date().toLocaleDateString('es-ES')}
+                </p>
+              </div>
+
+              {/* INFO */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">
+                  Reporte {reportType} ({filteredServices.length} resultados)
+                </h3>
+
+                <div className="space-y-4">
+                  {filteredServices.map(service => (
+                    <div key={service.id} className="border rounded-lg p-4">
+                      
+                      <p className="font-semibold">
+                        Servicio #{service.id}
                       </p>
-                      <p className="text-sm text-gray-500">
+
+                      <p><strong>Tipo:</strong> {getTypeLabel(service.type)}</p>
+                      <p><strong>Estado:</strong> {getStatusLabel(service.status)}</p>
+                      <p><strong>Técnico:</strong> {service.assignedTechnician || 'No asignado'}</p>
+                      <p><strong>Fecha inicio:</strong> {formatDate(service.startDate)}</p>
+                      <p><strong>Fecha fin:</strong> {formatDate(service.endDate)}</p>
+                      <p><strong>Descripción:</strong> {service.description || 'N/A'}</p>
+
+                      <div className="mt-2 text-sm text-gray-600">
                         {service.requesterName} • {service.requesterArea}
-                      </p>
-                    </div>
+                      </div>
 
-                    <span className="text-sm text-gray-500">
-                      {formatDate(service.startDate)}
-                    </span>
-                  </div>
-                ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* FOOTER */}
+              <div className="border-t pt-4 text-center text-sm text-gray-600">
+                <p>Reporte generado automáticamente</p>
+                <p>{new Date().toLocaleString('es-ES')}</p>
               </div>
 
             </div>

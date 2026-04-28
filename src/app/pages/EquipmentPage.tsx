@@ -59,6 +59,15 @@ const getMaintenanceState = (item: EquipmentItem): 'none' | 'completed' | 'overd
   const today = toStartOfDay(new Date());
   return targetDay.getTime() < today.getTime() ? 'overdue' : 'scheduled';
 };
+const isUnderMaintenance = (item: EquipmentItem) => {
+  if (!item.nextMaintenanceDate) return false;
+  if (item.maintenanceCompleted) return false;
+
+  const now = new Date();
+  const maintenanceDate = parseMaintenanceDate(item.nextMaintenanceDate);
+
+  return now >= maintenanceDate;
+};
 
 export function EquipmentPage() {
   const [equipment, setEquipment] = useState(getEquipment());
@@ -257,6 +266,7 @@ export function EquipmentPage() {
 
   const stats = {
     equipment: equipment.filter(i => i.type === 'equipment').length,
+    machinery: equipment.filter(i => i.type === 'machinery').length,
     tools: equipment.filter(i => i.type === 'tool').length,
     available: equipment.filter(i => i.available).length,
     inUse: equipment.filter(i => !i.available).length,
@@ -269,7 +279,7 @@ export function EquipmentPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Equipos y Utencilios
+              Equipos y Utensilios
             </span>
           </h1>
           <p className="text-gray-600 mt-1">Gestión de recursos del taller</p>
@@ -406,7 +416,7 @@ export function EquipmentPage() {
           </DialogContent>
         </Dialog>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -416,6 +426,20 @@ export function EquipmentPage() {
               <div>
                 <p className="text-sm text-purple-100">Equipos</p>
                 <p className="text-3xl font-bold">{stats.equipment}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2.5 rounded-xl">
+                <Wrench className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-indigo-100">Maquinaria</p>
+                <p className="text-3xl font-bold">{stats.machinery}</p>
               </div>
             </div>
           </CardContent>
@@ -492,7 +516,11 @@ export function EquipmentPage() {
                 {filteredEquipment.map((item) => (
                   <div
                     key={item.id}
-                    className="border-2 border-gray-100 rounded-xl p-4 hover:border-blue-300 hover:shadow-md transition-all bg-white"
+                    className={`border-2 rounded-xl p-4 transition-all bg-white ${
+                      isUnderMaintenance(item)
+                        ? 'border-yellow-300 opacity-70'
+                        : 'border-gray-100 hover:border-blue-300 hover:shadow-md'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className={`p-2.5 rounded-xl ${
@@ -508,14 +536,20 @@ export function EquipmentPage() {
                           <Wrench className="h-6 w-6 text-blue-600" />
                         )}
                       </div>
-                      <Badge 
-                        className={`${
-                          item.available 
-                            ? 'bg-green-100 text-green-800 border-green-200' 
+                      <Badge
+                        className={`border ${
+                          isUnderMaintenance(item)
+                            ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                            : item.available
+                            ? 'bg-green-100 text-green-800 border-green-200'
                             : 'bg-orange-100 text-orange-800 border-orange-200'
-                        } border`}
+                        }`}
                       >
-                        {item.available ? 'Disponible' : 'En Uso'}
+                        {isUnderMaintenance(item)
+                          ? 'Mantenimiento'
+                          : item.available
+                          ? 'Disponible'
+                          : 'En Uso'}
                       </Badge>
                     </div>
 
@@ -542,12 +576,19 @@ export function EquipmentPage() {
                       </div>
                     )}
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 mt-3">
                       <Button
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => toggleAvailability(item)}
+                        disabled={isUnderMaintenance(item)}
+                        onClick={() => {
+                          if (isUnderMaintenance(item)) {
+                            toast.error('El equipo está en mantenimiento');
+                            return;
+                          }
+                          toggleAvailability(item);
+                        }}
                       >
                         {item.available ? (
                           <>

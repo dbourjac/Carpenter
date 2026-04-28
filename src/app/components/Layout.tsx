@@ -67,7 +67,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex items-center justify-between p-6 border-b border-sidebar-border">
             <Link to="/dashboard" className="flex items-center gap-3 group no-hover">
              <div>
-                <img src={logoUnison} alt="Logo Unison" className="h-7 w-7 object-contain" />
+                <img src={logoUnison} alt="Logo Unison" className="h-15 w-15 object-contain" />
               </div>
               <div>
                 <span className="font-bold text-white text-lg block leading-none">Agenda de Carpintería Unison</span>
@@ -86,7 +86,7 @@ export function Layout({ children }: LayoutProps) {
 
           {/* User Info */}
           <div className="p-4 border-b border-sidebar-border bg-sidebar-accent">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="bg-gradient-to-br from-blue-300 to-blue-500 p-2.5 rounded-full shadow-lg">
                 <User className="h-5 w-5 text-white" />
               </div>
@@ -100,7 +100,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <nav className={`flex-1 p-4 space-y-2 ${user.role === 'admin' ? 'overflow-y-auto pr-2 scrollbar-thin' : 'overflow-hidden'}`}>
             {navigation.map((item) => {
               const active = isActive(item.href);
               return (
@@ -109,7 +109,7 @@ export function Layout({ children }: LayoutProps) {
                   to={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium cursor-pointer
+                    flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium cursor-pointer
                     transition-all duration-200
 
                     ${active 
