@@ -7,14 +7,12 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { createService, getTechnicians } from '../lib/storage';
-import { getTodayDateString, isDateBeforeToday } from '../lib/utils';
+import { serviceApi } from '../lib/api';
 import { ServiceType, ServicePriority } from '../lib/types';
 import { toast } from 'sonner';
 
 export function ServiceCreatePage() {
   const navigate = useNavigate();
-  const technicians = getTechnicians();
   const [formData, setFormData] = useState({
     name: '',
     type: 'corrective' as ServiceType,
@@ -54,44 +52,45 @@ export function ServiceCreatePage() {
     if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
       newErrors.endDate = 'La fecha de fin debe ser posterior a la de inicio';
     }
-    if (formData.estimatedCompletionDate && isDateBeforeToday(formData.estimatedCompletionDate)) {
-      newErrors.estimatedCompletionDate = 'La fecha estimada de finalización no puede ser anterior a hoy';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Por favor, corrige los errores en el formulario');
       return;
     }
 
-    const newService = createService({
-      name: formData.name,
-      type: formData.type,
-      priority: formData.priority,
-      status: 'pending',
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      estimatedCompletionDate: formData.estimatedCompletionDate || undefined,
-      requesterName: formData.requesterName,
-      requesterPhone: formData.requesterPhone,
-      requesterEmail: formData.requesterEmail,
-      requesterArea: formData.requesterArea,
-      assignedTechnician: formData.assignedTechnician || undefined,
-      location: formData.location || undefined,
-      description: formData.description || undefined,
-      observations: formData.observations,
-      equipment: [],
-      evidenceImages: [],
-    });
+    try {
+      const newService = await serviceApi.create({
+        name: formData.name,
+        type: formData.type,
+        priority: formData.priority,
+        status: 'pending',
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        estimatedCompletionDate: formData.estimatedCompletionDate || undefined,
+        requesterName: formData.requesterName,
+        requesterPhone: formData.requesterPhone,
+        requesterEmail: formData.requesterEmail,
+        requesterArea: formData.requesterArea,
+        assignedTechnician: formData.assignedTechnician || undefined,
+        location: formData.location || undefined,
+        description: formData.description || undefined,
+        observations: formData.observations,
+        equipment: [],
+        evidenceImages: [],
+      });
 
-    toast.success('Servicio creado exitosamente');
-    navigate(`/services/${newService.id}`);
+      toast.success('Servicio creado exitosamente');
+      navigate(`/services/${newService.id}`);
+    } catch (error) {
+      toast.error('No se pudo conectar con el servidor');
+    }
   };
 
   const updateField = (field: string, value: string) => {
@@ -146,8 +145,8 @@ export function ServiceCreatePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="type">Tipo de Servicio *</Label>
-                <Select 
-                  value={formData.type} 
+                <Select
+                  value={formData.type}
                   onValueChange={(value) => updateField('type', value)}
                 >
                   <SelectTrigger id="type" className="h-11">
@@ -164,8 +163,8 @@ export function ServiceCreatePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="priority">Prioridad *</Label>
-                <Select 
-                  value={formData.priority} 
+                <Select
+                  value={formData.priority}
                   onValueChange={(value) => updateField('priority', value)}
                 >
                   <SelectTrigger id="priority" className="h-11">
@@ -223,12 +222,8 @@ export function ServiceCreatePage() {
                   type="date"
                   value={formData.estimatedCompletionDate}
                   onChange={(e) => updateField('estimatedCompletionDate', e.target.value)}
-                  min={getTodayDateString()}
-                  className={`h-11 ${errors.estimatedCompletionDate ? 'border-red-500' : ''}`}
+                  className="h-11"
                 />
-                {errors.estimatedCompletionDate && (
-                  <p className="text-sm text-red-600">{errors.estimatedCompletionDate}</p>
-                )}
               </div>
             </div>
 
@@ -316,25 +311,14 @@ export function ServiceCreatePage() {
           </CardHeader>
           <CardContent className="pt-6 space-y-5">
             <div className="space-y-2">
-              <Select
+              <Label htmlFor="assignedTechnician">Técnico Asignado *</Label>
+              <Input
+                id="assignedTechnician"
+                placeholder="Nombre del técnico responsable"
                 value={formData.assignedTechnician}
-                onValueChange={(value) => updateField('assignedTechnician', value)}
-              >
-                <SelectTrigger
-                  id="assignedTechnician"
-                  className={`h-11 ${errors.assignedTechnician ? 'border-red-500' : ''}`}
-                >
-                  <SelectValue placeholder="Selecciona un técnico" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {technicians.map((tech) => (
-                    <SelectItem key={tech.id} value={tech.nombre}>
-                      {tech.nombre} — {tech.especialidad}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => updateField('assignedTechnician', e.target.value)}
+                className={`h-11 ${errors.assignedTechnician ? 'border-red-500' : ''}`}
+              />
               {errors.assignedTechnician && (
                 <p className="text-sm text-red-600">{errors.assignedTechnician}</p>
               )}
@@ -355,17 +339,17 @@ export function ServiceCreatePage() {
 
         {/* Actions */}
         <div className="flex gap-3">
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             size="lg"
             className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg"
           >
             <Save className="mr-2 h-5 w-5" />
             Crear Servicio
           </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             size="lg"
             onClick={() => navigate('/services')}
           >

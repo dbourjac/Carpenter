@@ -9,108 +9,121 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Textarea } from '../components/ui/textarea';
-import { getServiceById, updateService, getEquipment } from '../lib/storage';
-import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate, getTodayDateString, isDateBeforeToday } from '../lib/utils';
-import { ServiceStatus, ServicePriority } from '../lib/types';
+import { serviceApi } from '../lib/api';
+import { getEquipment } from '../lib/storage'; // Se mantiene si el inventario global sigue siendo mock
+import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate } from '../lib/utils';
+import { ServiceStatus, ServicePriority, ServiceRequest } from '../lib/types';
 import { toast } from 'sonner';
 
 export function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [service, setService] = useState(() => getServiceById(id!));
-  const [status, setStatus] = useState<ServiceStatus>(service?.status || 'pending');
-  const [priority, setPriority] = useState<ServicePriority>(service?.priority || 'medium');
-  const [assignedTechnician, setAssignedTechnician] = useState(service?.assignedTechnician || '');
-  const [location, setLocation] = useState(service?.location || '');
-  const [estimatedCompletion, setEstimatedCompletion] = useState(service?.estimatedCompletionDate || '');
-  const [observations, setObservations] = useState(service?.observations || '');
+  const [service, setService] = useState<ServiceRequest | null>(null);
+  const [status, setStatus] = useState<ServiceStatus>('pending');
+  const [priority, setPriority] = useState<ServicePriority>('medium');
+  const [assignedTechnician, setAssignedTechnician] = useState('');
+  const [location, setLocation] = useState('');
+  const [estimatedCompletion, setEstimatedCompletion] = useState('');
+  const [observations, setObservations] = useState('');
   const [newEquipment, setNewEquipment] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const availableEquipment = getEquipment();
 
   useEffect(() => {
-    if (!service) {
-      toast.error('Servicio no encontrado');
-      navigate('/services');
-    }
-  }, [service, navigate]);
+    const fetchService = async () => {
+      try {
+        const data = await serviceApi.getById(id!);
+        setService(data);
+        setStatus(data.status);
+        setPriority(data.priority);
+        setAssignedTechnician(data.assignedTechnician || '');
+        setLocation(data.location || '');
+        setEstimatedCompletion(data.estimatedCompletionDate || '');
+        setObservations(data.observations || '');
+      } catch (error) {
+        toast.error('Servicio no encontrado');
+        navigate('/services');
+      }
+    };
+    fetchService();
+  }, [id, navigate]);
 
   if (!service) return null;
 
-  const handleUpdateBasicInfo = () => {
-    if (estimatedCompletion && isDateBeforeToday(estimatedCompletion)) {
-      toast.error('La fecha estimada de finalización no puede ser anterior a hoy');
-      return;
-    }
-
-    const updated = updateService(service.id, {
-      status, 
-      priority,
-      assignedTechnician: assignedTechnician || undefined,
-      location: location || undefined,
-      estimatedCompletionDate: estimatedCompletion || undefined,
-      observations,
-    });
-    if (updated) {
+  const handleUpdateBasicInfo = async () => {
+    try {
+      const updated = await serviceApi.update(service.id, {
+        status,
+        priority,
+        assignedTechnician: assignedTechnician || undefined,
+        location: location || undefined,
+        estimatedCompletionDate: estimatedCompletion || undefined,
+        observations,
+      });
       setService(updated);
       toast.success('Información actualizada correctamente');
+    } catch (error) {
+      toast.error('Error al actualizar');
     }
   };
 
-  const handleAddEquipment = () => {
+  const handleAddEquipment = async () => {
     if (!newEquipment.trim()) {
       toast.error('Seleccione o ingrese un equipo');
       return;
     }
 
-    const updated = updateService(service.id, {
-      equipment: [...service.equipment, newEquipment],
-    });
-
-    if (updated) {
+    try {
+      const updated = await serviceApi.addUtensilio(service.id, { nombre: newEquipment });
       setService(updated);
       setNewEquipment('');
       toast.success('Equipo agregado');
+    } catch (error) {
+      toast.error('Error al agregar equipo');
     }
   };
 
-  const handleRemoveEquipment = (index: number) => {
-    const updated = updateService(service.id, {
-      equipment: service.equipment.filter((_, i) => i !== index),
-    });
-    if (updated) {
+  const handleRemoveEquipment = async (item: any, index: number) => {
+    try {
+      // Asumimos que el backend usa el ID del utensilio o el índice si es un arreglo simple
+      const updated = await serviceApi.removeUtensilio(service!.id, item.id || index);
       setService(updated);
       toast.success('Equipo eliminado');
+    } catch (error) {
+      toast.error('Error al eliminar equipo');
     }
   };
 
-  const handleUploadImage = () => {
+  const handleUploadImage = async () => {
     if (!imageFile) {
       toast.error('Seleccione una imagen');
       return;
     }
 
-    const imageUrl = URL.createObjectURL(imageFile);
-    
-    const updated = updateService(service.id, {
-      evidenceImages: [...service.evidenceImages, imageUrl],
-    });
-
-    if (updated) {
-      setService(updated);
-      setImageFile(null);
-      toast.success('Imagen cargada exitosamente');
-    }
+    const reader = new FileReader();
+    reader.readAsDataURL(imageFile);
+    reader.onload = async () => {
+      try {
+        const base64Image = reader.result as string;
+        const updated = await serviceApi.addEvidencia(service!.id, { imagen: base64Image });
+        setService(updated);
+        setImageFile(null);
+        toast.success('Imagen cargada exitosamente');
+      } catch (error) {
+        toast.error('Error al subir imagen');
+      }
+    };
   };
 
-  const handleRemoveImage = (index: number) => {
-    const updated = updateService(service.id, {
-      evidenceImages: service.evidenceImages.filter((_, i) => i !== index),
-    });
-    if (updated) {
+  const handleRemoveImage = async (image: any, index: number) => {
+    try {
+      // Asumimos que el backend usa el ID de la evidencia
+      const updated = await serviceApi.deleteEvidencia(service!.id, image.id || index);
       setService(updated);
       toast.success('Imagen eliminada');
+    } catch (error) {
+      toast.error('Error al eliminar imagen');
     }
   };
 
@@ -227,7 +240,7 @@ export function ServiceDetailPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemoveEquipment(index)}
+                        onClick={() => handleRemoveEquipment(item, index)}
                       >
                         <X className="h-4 w-4 text-red-600" />
                       </Button>
@@ -294,7 +307,7 @@ export function ServiceDetailPage() {
                         variant="destructive"
                         size="icon"
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                        onClick={() => handleRemoveImage(index)}
+                        onClick={() => handleRemoveImage(image, index)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -325,7 +338,7 @@ export function ServiceDetailPage() {
         {/* Right Column - Control Panel */}
         <div className="space-y-6">
           {/* Status Control */}
-          <Card className="border-0 shadow-lg">
+          <Card className="border-0 shadow-lg sticky top-4">
             <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
               <CardTitle className="text-white">Control del Servicio</CardTitle>
               <CardDescription className="text-blue-100">
@@ -402,11 +415,10 @@ export function ServiceDetailPage() {
                   type="date"
                   value={estimatedCompletion}
                   onChange={(e) => setEstimatedCompletion(e.target.value)}
-                  min={getTodayDateString()}
                 />
               </div>
 
-              <Button 
+              <Button
                 onClick={handleUpdateBasicInfo}
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
               >
@@ -434,7 +446,7 @@ export function ServiceDetailPage() {
                   className="resize-none"
                 />
               </div>
-              <Button 
+              <Button
                 onClick={handleUpdateBasicInfo}
                 variant="outline"
                 className="w-full"

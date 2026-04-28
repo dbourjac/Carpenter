@@ -1,233 +1,127 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router';
-import { Link } from 'react-router';
-import { Plus, Filter, Search, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import { Plus, Search, Eye, Trash2, Filter } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { getServices } from '../lib/storage';
-import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate, sortServices, filterServices } from '../lib/utils';
-
+import { serviceApi } from '../lib/api';
+import { ServiceRequest } from '../lib/types';
+import { getStatusLabel, getStatusColor, formatDate } from '../lib/utils';
+import { toast } from 'sonner';
 
 export function ServicesListPage() {
-  const services = getServices();
-  const [searchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>(
-    searchParams.get('status') || 'all'
-  );
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const period = searchParams.get('period');
+  const navigate = useNavigate();
+  const [services, setServices] = useState<ServiceRequest[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filteredServices = useMemo(() => {
-    let result = filterServices(services, {
-      searchQuery,
-      statusFilter,
-      typeFilter,
-      priorityFilter
-    });
+  // Cargamos los servicios del backend al montar el componente
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        const data = await serviceApi.getAll();
+        setServices(data);
+      } catch (error) {
+        console.error('Error fetching services:', error);
+        toast.error('No se pudieron cargar los servicios del servidor');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (period === 'month') {
-      const now = new Date();
+    fetchServices();
+  }, []);
 
-      result = result.filter((s) => {
-        const date = new Date(s.endDate || s.startDate);
+  // Función para eliminar un servicio
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este servicio permanentemente?')) return;
 
-        return (
-          date.getMonth() === now.getMonth() &&
-          date.getFullYear() === now.getFullYear()
-        );
-      });
+    try {
+      await serviceApi.remove(id);
+      setServices(prev => prev.filter(s => s.id !== id));
+      toast.success('Servicio eliminado correctamente');
+    } catch (error) {
+      toast.error('Error al intentar eliminar el servicio');
     }
+  };
 
-    return sortServices(result);
-  }, [services, searchQuery, statusFilter, typeFilter, priorityFilter, period]);
+  // Filtro de búsqueda por nombre o solicitante
+  const filteredServices = services.filter(service =>
+    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    service.requesterName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Servicios
-            </span>
-          </h1>
-          <p className="text-gray-600 mt-1">Administra y consulta los servicios del taller</p>
+          <h1 className="text-3xl font-bold text-gray-900">Panel de Servicios</h1>
+          <p className="text-gray-600 mt-1">Gestión y seguimiento de órdenes de trabajo</p>
         </div>
-        <Link to="/services/new">
-          <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg">
-            <Plus className="mr-2 h-5 w-5" />
-            Nueva Solicitud
-          </Button>
-        </Link>
+        <Button
+          onClick={() => navigate('/services/new')}
+          className="bg-blue-600 hover:bg-blue-700 shadow-md"
+        >
+          <Plus className="mr-2 h-4 w-4" /> Nuevo Servicio
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="border-0 shadow-lg -mt-2">
-        <CardContent className="pt-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
-            <div className="flex flex-col gap-2 mt-auto">
-              <label className="text-sm font-medium text-gray-700 leading-[1]">
-                Buscar
-              </label>
-              <div className="relative flex items-center h-11">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Nombre, área, descripción..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-11"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Estado</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="in-progress">En Progreso</SelectItem>
-                  <SelectItem value="completed">Completado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Tipo</label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="preventive">Preventivo</SelectItem>
-                  <SelectItem value="corrective">Correctivo</SelectItem>
-                  <SelectItem value="installation">Instalación</SelectItem>
-                  <SelectItem value="other">Otro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Prioridad</label>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="low">Baja</SelectItem>
-                  <SelectItem value="medium">Media</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="border-b bg-gray-50/50">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Buscar por nombre de servicio o solicitante..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-11 bg-white"
+            />
           </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {loading ? (
+            <div className="py-12 text-center text-gray-500 italic">Cargando servicios desde el servidor...</div>
+          ) : filteredServices.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">No se encontraron servicios registrados.</div>
+          ) : (
+            <div className="grid gap-4">
+              {filteredServices.map((service) => (
+                <div key={service.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition-all group">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg text-gray-900">{service.name}</h3>
+                      <Badge className={getStatusColor(service.status)}>{getStatusLabel(service.status)}</Badge>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Solicitante: <span className="font-medium">{service.requesterName}</span> • {formatDate(service.startDate)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => navigate(`/services/${service.id}`)}
+                      className="hover:bg-blue-50 hover:text-blue-600"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => handleDelete(service.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Results Summary */}
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-600">
-          Mostrando <span className="font-semibold text-gray-900">{filteredServices.length}</span> de {services.length} servicios
-        </span>
-        {(searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || priorityFilter !== 'all') && (
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => {
-              setSearchQuery('');
-              setStatusFilter('all');
-              setTypeFilter('all');
-              setPriorityFilter('all');
-            }}
-          >
-            Limpiar filtros
-          </Button>
-        )}
-      </div>
-
-      {/* Services List */}
-      <div className="space-y-2">
-        {filteredServices.length === 0 ? (
-          <Card className="border-0 shadow-lg">
-            <CardContent className="py-12 text-center">
-              <p className="text-gray-500">No se encontraron servicios con los filtros aplicados</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredServices.map((service) => (
-            <Link 
-              key={service.id} 
-              to={`/services/${service.id}`}
-              className={`block w-full p-5 border-2 rounded-xl bg-white transition-all duration-200 cursor-pointer 
-              hover:bg-gray-300 hover:shadow-xl hover:-translate-y-[2px] ${
-                service.priority === 'high'
-                  ? 'border-red-400 shadow-md'
-                  : 'border-gray-100'
-              }`}
-            >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-start gap-3 flex-wrap">
-                        <h3 className="font-semibold text-lg text-gray-900">
-                          {service.name}
-                        </h3>
-                        <div className="flex gap-2 flex-wrap">
-                          <Badge className={`${getStatusColor(service.status)} border`}>
-                            {getStatusLabel(service.status)}
-                          </Badge>
-                          <Badge className={`${getPriorityColor(service.priority)} border`}>
-                            {getPriorityLabel(service.priority)}
-                          </Badge>
-                          <Badge variant="outline">
-                            {getTypeLabel(service.type)}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium text-gray-700">Solicitante:</span> {service.requesterName}
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Área:</span> {service.requesterArea}
-                        </div>
-                        {service.assignedTechnician && (
-                          <div>
-                            <span className="font-medium text-gray-700">Técnico:</span> {service.assignedTechnician}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          <span>{formatDate(service.startDate)}</span>
-                        </div>
-                        {service.location && (
-                          <div>
-                            <span className="font-medium text-gray-700">Ubicación:</span> {service.location}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm text-gray-500 lg:flex-col lg:items-end shrink-0">
-                      <div className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                        #{service.id}
-                      </div>
-                    </div>
-                  </div>
-            </Link>
-          ))
-        )}
-      </div>
     </div>
   );
 }
