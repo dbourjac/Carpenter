@@ -6,7 +6,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
-import { login } from '../lib/storage';
+import { authApi } from '../lib/api';
+import { normalizeUser } from '../lib/utils';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -31,15 +32,22 @@ export function LoginPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
-      const user = login(email, password);
-      if (user) {
-        navigate('/dashboard');
-      } else {
-        setError('Credenciales inválidas. Por favor, verifica tu email y contraseña.');
-      }
+    try {
+      const userData = normalizeUser(await authApi.login(email, password));
+
+      // Guardamos el usuario en localStorage
+      localStorage.setItem('workshop_current_user', JSON.stringify(userData));
+
+      navigate('/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const message = err.response?.data?.message ||
+                     err.response?.data?.error ||
+                     'Error al conectar con el servidor. Por favor, verifica tus credenciales.';
+      setError(message);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -70,7 +78,7 @@ export function LoginPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Correo Electrónico</Label>
               <Input
@@ -83,7 +91,7 @@ export function LoginPage() {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <Input
@@ -97,9 +105,9 @@ export function LoginPage() {
               />
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg" 
+            <Button
+              type="submit"
+              className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg"
               disabled={loading}
             >
               {loading ? (
@@ -112,18 +120,6 @@ export function LoginPage() {
               )}
             </Button>
           </form>
-
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm">
-            <p className="text-blue-900 font-medium mb-2">Credenciales de prueba:</p>
-            <div className="space-y-1 text-blue-700">
-              <p><strong>Admin:</strong> admin@workshop.com</p>
-              <p><strong>Jefe de Taller:</strong> carlos@workshop.com</p>
-              <p><strong>Contraseña:</strong> password123</p>
-              <p className="text-xs text-blue-600 mt-2">
-                💡 El Admin puede registrar nuevos jefes de taller en la sección "Usuarios" del menú.
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

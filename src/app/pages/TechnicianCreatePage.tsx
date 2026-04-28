@@ -139,7 +139,7 @@ export function TechnicianCreatePage() {
             <div className="space-y-2">
             <Label>Cargo *</Label>
             <Input
-                placeholder="ej. Técnico, Supervisor"
+                placeholder="ej. Técnico, Jefe de Taller"
                 value={formData.cargo}
                 onChange={(e) => updateField('cargo', e.target.value)}
                 className={`h-11 ${errors.cargo ? 'border-red-500' : ''}`}

@@ -1,4 +1,5 @@
 import { ServiceRequest, EquipmentItem, User, Technician } from './types';
+import { normalizeUser, normalizeUserRole } from './utils';
 
 const STORAGE_KEYS = {
   SERVICES: 'workshop_services',
@@ -25,7 +26,7 @@ const MOCK_USERS: UserCredentials[] = [
     id: '2',
     name: 'Carlos Mendoza',
     email: 'carlos@workshop.com',
-    role: 'manager',
+    role: 'supervisor',
     phone: '+1234567891',
     password: 'password123',
   },
@@ -36,9 +37,9 @@ export const getAllUsers = (): User[] => {
   const stored = localStorage.getItem(STORAGE_KEYS.USERS);
   if (stored) {
     const users: UserCredentials[] = JSON.parse(stored);
-    return users.map(({ password, ...user }) => user);
+    return users.map(({ password, ...user }) => normalizeUser(user));
   }
-  return MOCK_USERS.map(({ password, ...user }) => user);
+  return MOCK_USERS.map(({ password, ...user }) => normalizeUser(user));
 };
 
 export const getUserById = (id: string): User | undefined => {
@@ -47,7 +48,13 @@ export const getUserById = (id: string): User | undefined => {
 
 export const getUsersWithCredentials = (): UserCredentials[] => {
   const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-  return stored ? JSON.parse(stored) : MOCK_USERS;
+  if (!stored) return MOCK_USERS;
+
+  const users: UserCredentials[] = JSON.parse(stored);
+  return users.map((user) => ({
+    ...user,
+    role: normalizeUserRole((user as any).role ?? (user as any).rol ?? (user as any).cargo ?? (user as any).tipo_usuario),
+  }));
 };
 
 export const createUser = (userData: Omit<UserCredentials, 'id'>): User => {
@@ -123,7 +130,7 @@ export const logout = () => {
 
 export const getCurrentUser = (): User | null => {
   const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-  return stored ? JSON.parse(stored) : null;
+  return stored ? normalizeUser(JSON.parse(stored)) : null;
 };
 
 // Services

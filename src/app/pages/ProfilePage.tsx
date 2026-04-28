@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Separator } from '../components/ui/separator';
 import { Badge } from '../components/ui/badge';
 import { getCurrentUser, logout } from '../lib/storage';
+import { getRoleLabel } from '../lib/utils';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export function ProfilePage() {
               <p className="text-gray-600">{user.email}</p>
             </div>
             <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="text-sm">
-              {user.role === 'admin' ? 'Administrador' : 'Jefe de Taller'}
+              {getRoleLabel(user.role)}
             </Badge>
           </div>
 
@@ -61,7 +62,7 @@ export function ProfilePage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Rol</p>
-              <p className="font-medium capitalize">{user.role === 'admin' ? 'Administrador' : 'Jefe de Taller'}</p>
+              <p className="font-medium capitalize">{getRoleLabel(user.role)}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Email</p>
@@ -90,7 +91,7 @@ export function ProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {user.role === 'manager' ? (
+            {user.role === 'supervisor' ? (
               <>
                 <PermissionItem granted title="Ver todos los servicios" />
                 <PermissionItem granted title="Crear nuevas solicitudes" />

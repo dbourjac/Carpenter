@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, Download, Printer, TrendingUp } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Separator } from '../components/ui/separator';
-import { getServices } from '../lib/storage';
+import { reportesApi } from '../lib/api';
+import { ServiceRequest } from '../lib/types';
 import { getStatusLabel, getTypeLabel, getPriorityLabel, formatDate } from '../lib/utils';
 import { toast } from 'sonner';
 
 export function ReportsPage() {
-  const services = getServices();
+  const [services, setServices] = useState<ServiceRequest[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
   const [reportType, setReportType] = useState<string>('daily');
   const [isGenerated, setIsGenerated] = useState(false);
@@ -17,6 +19,23 @@ export function ReportsPage() {
     start: '',
     end: ''
   });
+
+  useEffect(() => {
+    const loadServices = async () => {
+      setLoadingServices(true);
+      try {
+        const rows = await reportesApi.getHistorial();
+        setServices(rows);
+      } catch (err) {
+        console.error('Error loading report data:', err);
+        toast.error('No se pudieron cargar los datos de reportes');
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    void loadServices();
+  }, []);
 
   const selectedService = services.find(s => s.id === selectedServiceId);
 
@@ -184,6 +203,7 @@ export function ReportsPage() {
           </span>
         </h1>
         <p className="text-gray-600 mt-1">Generación de reportes y análisis del taller</p>
+        {loadingServices && <p className="text-sm text-gray-500 mt-2">Cargando datos...</p>}
       </div>
 
       {/* Summary Statistics */}

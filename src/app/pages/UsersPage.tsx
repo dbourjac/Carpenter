@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -15,14 +15,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-import { getAllUsers, createUser, updateUser, deleteUser, getCurrentUser, getUserById } from '../lib/storage';
+import { getCurrentUser } from '../lib/storage';
+import { authApi } from '../lib/api';
+import { normalizeUser } from '../lib/utils';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 
 export function UsersPage() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
-  const [users, setUsers] = useState(getAllUsers().filter(u => u.role === 'manager'));
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -34,6 +37,27 @@ export function UsersPage() {
     phone: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await authApi.listUsers();
+      const rawUsers = Array.isArray(response)
+        ? response
+        : response?.usuarios ?? response?.users ?? response?.data ?? [];
+
+      setUsers(rawUsers.map(normalizeUser).filter((user) => user.role === 'supervisor'));
+    } catch (err) {
+      console.error('Error loading jefes de taller:', err);
+      toast.error('No se pudieron cargar los jefes de taller');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadUsers();
+  }, []);
 
   // Solo admin puede acceder
   if (!currentUser || currentUser.role !== 'admin') {
@@ -61,9 +85,9 @@ export function UsersPage() {
   };
 
   const openEditDialog = (id: string) => {
-    const user = getUserById(id);
+    const user = users.find((item) => item.id === id);
     if (!user) {
-      toast.error('Jefe de taller no encontrado');
+      toast.error('Jefe de Taller no encontrado');
       return;
     }
 
@@ -103,7 +127,7 @@ export function UsersPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -113,30 +137,30 @@ export function UsersPage() {
 
     try {
       if (editingUserId) {
-        updateUser(editingUserId, {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone || undefined,
-          ...(formData.password ? { password: formData.password } : {}),
-          role: 'manager',
-        });
+        if (!formData.password.trim()) {
+          toast.error('La nueva contraseña es requerida');
+          return;
+        }
+
+        await authApi.updateUserPassword(editingUserId, formData.password);
         toast.success(`Jefe de Taller ${formData.name} actualizado correctamente`);
       } else {
-        createUser({
-          name: formData.name,
-          email: formData.email,
+        await authApi.createUser({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
           password: formData.password,
           phone: formData.phone || undefined,
-          role: 'manager',
+          role: 'supervisor',
         });
         toast.success(`Jefe de Taller ${formData.name} registrado correctamente`);
       }
 
-      setUsers(getAllUsers().filter(u => u.role === 'manager'));
       setIsDialogOpen(false);
       resetForm();
+      await loadUsers();
     } catch (err) {
-      toast.error((err as Error).message);
+      console.error('Error saving user:', err);
+      toast.error((err as Error).message || 'No se pudo guardar el usuario');
     }
   };
 
@@ -146,9 +170,9 @@ export function UsersPage() {
       return;
     }
 
-    const user = getUserById(id);
+    const user = users.find((item) => item.id === id);
     if (!user) {
-      toast.error('Jefe de taller no encontrado');
+      toast.error('Jefe de Taller no encontrado');
       return;
     }
 
@@ -158,15 +182,16 @@ export function UsersPage() {
   const confirmDelete = () => {
     if (!deleteTarget) return;
 
-    const deleted = deleteUser(deleteTarget.id);
-    if (deleted) {
-      setUsers(getAllUsers().filter(u => u.role === 'manager'));
-      toast.success('Jefe de Taller eliminado correctamente');
-    } else {
-      toast.error('No se pudo eliminar el usuario');
-    }
-
-    setDeleteTarget(null);
+    void authApi.deleteUser(deleteTarget.id)
+      .then(() => {
+        toast.success('Jefe de Taller eliminado correctamente');
+        setDeleteTarget(null);
+        void loadUsers();
+      })
+      .catch((err) => {
+        console.error('Error deleting user:', err);
+        toast.error('No se pudo eliminar el usuario');
+      });
   };
 
   return (
@@ -186,7 +211,7 @@ export function UsersPage() {
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg" onClick={openCreateDialog}>
+              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg" onClick={openCreateDialog}>
               <Plus className="mr-2 h-5 w-5" />
               Registrar Jefe de Taller
             </Button>
@@ -269,7 +294,7 @@ export function UsersPage() {
                           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-blue-600" onClick={() => openEditDialog(user.id)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-red-600" onClick={() => handleDelete(user.id)} disabled={user.id === currentUser.id} title={user.id === currentUser.id ? 'No puedes eliminar tu propia cuenta' : 'Eliminar jefe de taller'}>
+                          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-red-600" onClick={() => handleDelete(user.id)} disabled={user.id === currentUser.id} title={user.id === currentUser.id ? 'No puedes eliminar tu propia cuenta' : 'Eliminar supervisor'}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>

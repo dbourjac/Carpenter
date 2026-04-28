@@ -1,7 +1,7 @@
 export type ServiceType = 'preventive' | 'corrective' | 'installation' | 'other';
 export type ServiceStatus = 'pending' | 'in-progress' | 'completed';
 export type ServicePriority = 'low' | 'medium' | 'high';
-export type UserRole = 'admin' | 'manager';
+export type UserRole = 'admin' | 'supervisor';
 
 export interface User {
   id: string;
@@ -9,6 +9,7 @@ export interface User {
   email: string;
   role: UserRole;
   phone?: string;
+  token?: string; // Token de autenticación del backend
 }
 
 export interface ServiceRequest {

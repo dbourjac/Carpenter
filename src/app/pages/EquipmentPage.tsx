@@ -9,12 +9,7 @@ import { Badge } from '../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Textarea } from '../components/ui/textarea';
-import { 
-  getEquipment, 
-  createEquipmentItem, 
-  updateEquipmentItem, 
-  deleteEquipmentItem 
-} from '../lib/storage';
+import { utensiliosApi } from '../lib/api';
 import { EquipmentItem } from '../lib/types';
 import { toast } from 'sonner';
 
@@ -70,7 +65,8 @@ const isUnderMaintenance = (item: EquipmentItem) => {
 };
 
 export function EquipmentPage() {
-  const [equipment, setEquipment] = useState(getEquipment());
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(true);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -89,9 +85,23 @@ export function EquipmentPage() {
     maintenanceNotes: '',
   });
 
+  const loadEquipment = async () => {
+    setLoadingEquipment(true);
+    try {
+      const rows = await utensiliosApi.getAll();
+      setEquipment(rows);
+      checkMaintenanceNotifications(rows);
+    } catch (err) {
+      console.error('Error loading utensilios:', err);
+      toast.error('No se pudieron cargar equipos y utensilios');
+    } finally {
+      setLoadingEquipment(false);
+    }
+  };
+
   // Check maintenance notifications on component mount
   useEffect(() => {
-    checkMaintenanceNotifications();
+    void loadEquipment();
   }, []);
 
   const resetForm = () => {
@@ -119,7 +129,7 @@ export function EquipmentPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -134,35 +144,47 @@ export function EquipmentPage() {
       description: formData.description || undefined,
     };
 
-    if (editingItem) {
-      const updated = updateEquipmentItem(editingItem.id, itemData);
-      if (updated) {
-        setEquipment(getEquipment());
+    try {
+      if (editingItem) {
+        await utensiliosApi.update(editingItem.id, itemData);
         toast.success('Item actualizado correctamente');
+      } else {
+        await utensiliosApi.create(itemData);
+        toast.success('Item agregado correctamente');
       }
-    } else {
-      createEquipmentItem(itemData);
-      setEquipment(getEquipment());
-      toast.success('Item agregado correctamente');
+
+      await loadEquipment();
+    } catch (err) {
+      console.error('Error saving utensilio:', err);
+      toast.error('No se pudo guardar el item');
+      return;
     }
 
     setIsDialogOpen(false);
     resetForm();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('¿Está seguro de eliminar este item?')) {
-      deleteEquipmentItem(id);
-      setEquipment(getEquipment());
-      toast.success('Item eliminado');
+      try {
+        await utensiliosApi.remove(id);
+        await loadEquipment();
+        toast.success('Item eliminado');
+      } catch (err) {
+        console.error('Error deleting utensilio:', err);
+        toast.error('No se pudo eliminar el item');
+      }
     }
   };
 
-  const toggleAvailability = (item: EquipmentItem) => {
-    const updated = updateEquipmentItem(item.id, { available: !item.available });
-    if (updated) {
-      setEquipment(getEquipment());
+  const toggleAvailability = async (item: EquipmentItem) => {
+    try {
+      const updated = await utensiliosApi.update(item.id, { available: !item.available });
+      await loadEquipment();
       toast.success(updated.available ? 'Marcado como disponible' : 'Marcado como no disponible');
+    } catch (err) {
+      console.error('Error toggling availability:', err);
+      toast.error('No se pudo actualizar disponibilidad');
     }
   };
 
@@ -180,7 +202,7 @@ export function EquipmentPage() {
     setMaintenanceDialogOpen(true);
   };
 
-  const handleMaintenanceSubmit = (e: React.FormEvent) => {
+  const handleMaintenanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!maintenanceData.nextMaintenanceDate) {
@@ -194,22 +216,27 @@ export function EquipmentPage() {
     }
 
     if (maintenanceItem) {
-      const updated = updateEquipmentItem(maintenanceItem.id, {
-        nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
-        maintenanceCompleted: false,
-        maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
-      });
-
-      if (updated) {
-        setEquipment(getEquipment());
-        toast.success('Mantenimiento programado correctamente');
-        setMaintenanceDialogOpen(false);
-        checkMaintenanceNotifications(getEquipment());
+      try {
+        await utensiliosApi.scheduleMaintenance(maintenanceItem.id, {
+          nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
+          maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
+        });
+      } catch {
+        // fallback: algunos backends guardan mantenimiento desde update directo
+        await utensiliosApi.update(maintenanceItem.id, {
+          nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
+          maintenanceCompleted: false,
+          maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
+        });
       }
+
+      await loadEquipment();
+      toast.success('Mantenimiento programado correctamente');
+      setMaintenanceDialogOpen(false);
     }
   };
 
-  const handleMarkMaintenanceCompleted = (item: EquipmentItem) => {
+  const handleMarkMaintenanceCompleted = async (item: EquipmentItem) => {
     if (item.type !== 'machinery') {
       toast.error('Solo la maquinaria puede marcar mantenimiento');
       return;
@@ -220,14 +247,16 @@ export function EquipmentPage() {
       return;
     }
 
-    const updated = updateEquipmentItem(item.id, {
-      maintenanceCompleted: true,
-      lastMaintenanceDate: new Date().toISOString(),
-    });
-
-    if (updated) {
-      setEquipment(getEquipment());
+    try {
+      await utensiliosApi.update(item.id, {
+        maintenanceCompleted: true,
+        lastMaintenanceDate: new Date().toISOString(),
+      });
+      await loadEquipment();
       toast.success('Mantenimiento marcado como completado');
+    } catch (err) {
+      console.error('Error completing maintenance:', err);
+      toast.error('No se pudo marcar el mantenimiento');
     }
   };
 
@@ -283,6 +312,7 @@ export function EquipmentPage() {
             </span>
           </h1>
           <p className="text-gray-600 mt-1">Gestión de recursos del taller</p>
+          {loadingEquipment && <p className="text-sm text-gray-500 mt-2">Cargando datos...</p>}
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
