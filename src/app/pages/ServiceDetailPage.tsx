@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Textarea } from '../components/ui/textarea';
-import { serviceApi } from '../lib/api';
+import { serviceApi, technicianApi } from '../lib/api';
 import { getEquipment } from '../lib/storage'; // Se mantiene si el inventario global sigue siendo mock
 import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate } from '../lib/utils';
 import { ServiceStatus, ServicePriority, ServiceRequest } from '../lib/types';
@@ -27,8 +27,21 @@ export function ServiceDetailPage() {
   const [observations, setObservations] = useState('');
   const [newEquipment, setNewEquipment] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [technicians, setTechnicians] = useState<any[]>([]);
 
   const availableEquipment = getEquipment();
+
+  useEffect(() => {
+    const loadTechnicians = async () => {
+      try {
+        const data = await technicianApi.getAll();
+        setTechnicians(data);
+      } catch (error) {
+        console.error('Error cargando técnicos');
+      }
+    };
+    loadTechnicians();
+  }, []);
 
   useEffect(() => {
     const fetchService = async () => {
@@ -37,7 +50,7 @@ export function ServiceDetailPage() {
         setService(data);
         setStatus(data.status);
         setPriority(data.priority);
-        setAssignedTechnician(data.assignedTechnician || '');
+        setAssignedTechnician(String(data.assignedTechnician || ''));
         setLocation(data.location || '');
         setEstimatedCompletion(data.estimatedCompletionDate || '');
         setObservations(data.observations || '');
@@ -54,6 +67,8 @@ export function ServiceDetailPage() {
   const handleUpdateBasicInfo = async () => {
     try {
       const updated = await serviceApi.update(service.id, {
+        name: service.name,
+        description: service.description,
         status,
         priority,
         assignedTechnician: assignedTechnician || undefined,
@@ -148,7 +163,7 @@ export function ServiceDetailPage() {
               {getStatusLabel(service.status)}
             </Badge>
             <Badge className={`${getPriorityColor(service.priority)} border`}>
-              Prioridad: {getPriorityLabel(service.priority)}
+              {getPriorityLabel(service.priority)}
             </Badge>
           </div>
           <p className="text-gray-600 mt-1">Detalles completos del servicio</p>
@@ -384,12 +399,18 @@ export function ServiceDetailPage() {
                   <UserIcon className="h-4 w-4" />
                   Técnico Asignado
                 </Label>
-                <Input
-                  id="technician"
-                  placeholder="Nombre del técnico"
-                  value={assignedTechnician}
-                  onChange={(e) => setAssignedTechnician(e.target.value)}
-                />
+                <Select value={assignedTechnician} onValueChange={setAssignedTechnician}>
+                  <SelectTrigger id="technician">
+                    <SelectValue placeholder="Seleccionar técnico..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {technicians.map((tech) => (
+                      <SelectItem key={tech.id} value={String(tech.id)}>
+                        {tech.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
