@@ -34,12 +34,12 @@ export interface ServiceRequest {
   updatedAt: string;
 }
 
-export interface Material {
+/*export interface Material {
   id: string;
   name: string;
   quantity: number;
   unit: string;
-}
+}*/
 
 export interface EquipmentItem {
   id: string;
