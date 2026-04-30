@@ -6,11 +6,10 @@ import { EquipmentItem, ServiceRequest, ServiceStatus, ServiceType } from './typ
 //   de modo que las llamadas a "/api/..." pasen por el proxy de Vite en desarrollo.
 // - Si VITE_API_URL está definida con una URL (p. ej. http://localhost:3000) =>
 //   usamos esa URL como base y las peticiones irán directamente al backend.
-const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined);
 const API_URL = 'http://localhost:3000';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: API_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -19,15 +18,15 @@ const api = axios.create({
 
 const normalizeServiceType = (value: unknown): ServiceType => {
   const raw = String(value ?? '').toLowerCase();
-  if (raw.includes('prevent')) return 'preventive';
+  if (raw.includes('prevent') || raw.includes('mantenimiento')) return 'preventive';
   if (raw.includes('instal')) return 'installation';
-  if (raw.includes('corr')) return 'corrective';
+  if (raw.includes('repar') || raw.includes('corr')) return 'corrective';
   return 'other';
 };
 
 const normalizeServiceStatus = (value: unknown): ServiceStatus => {
   const raw = String(value ?? '').toLowerCase();
-  if (raw.includes('complet') || raw.includes('cerrad')) return 'completed';
+  if (raw.includes('complet') || raw.includes('cerrad') || raw.includes('final')) return 'completed';
   if (raw.includes('progreso') || raw.includes('proceso') || raw.includes('progress')) return 'in-progress';
   return 'pending';
 };
@@ -39,9 +38,9 @@ const normalizeService = (row: any): ServiceRequest => {
 
   return {
     id: String(source?.id ?? source?.servicio_id ?? source?.id_servicio ?? ''),
-    name: String(source?.name ?? source?.nombre ?? source?.titulo ?? source?.descripcion_corta ?? 'Servicio'),
-    type: normalizeServiceType(source?.type ?? source?.tipo),
-    status: normalizeServiceStatus(source?.status ?? source?.estado),
+    name: String(source?.name ?? source?.nombre ?? source?.titulo ?? source?.descripcion_corta ?? source?.tipo_hs_servicio ?? 'Servicio'),
+    type: normalizeServiceType(source?.type ?? source?.tipo ?? source?.tipo_hs_servicio),
+    status: normalizeServiceStatus(source?.status ?? source?.estado ?? source?.status_final),
     priority: (source?.priority ?? source?.prioridad ?? 'medium') as ServiceRequest['priority'],
     startDate: String(startDate),
     endDate: String(endDate),
@@ -50,21 +49,23 @@ const normalizeService = (row: any): ServiceRequest => {
     requesterPhone: String(source?.requesterPhone ?? source?.solicitante_telefono ?? source?.telefono_solicitante ?? ''),
     requesterEmail: String(source?.requesterEmail ?? source?.solicitante_email ?? source?.email_solicitante ?? ''),
     requesterArea: String(source?.requesterArea ?? source?.area_solicitante ?? source?.area ?? ''),
-    assignedTechnician: source?.assignedTechnician ?? source?.tecnico_asignado ?? source?.personal_nombre,
+    assignedTechnician: source?.assignedTechnician ?? source?.tecnico_asignado ?? source?.personal_nombre ?? source?.tecnico,
     equipment: source?.equipment ?? source?.equipos ?? source?.utensilios ?? [],
-    observations: String(source?.observations ?? source?.observaciones ?? ''),
+    observations: String(source?.observations ?? source?.observaciones ?? source?.notas ?? ''),
     location: source?.location ?? source?.ubicacion,
     evidenceImages: source?.evidenceImages ?? source?.evidencias ?? source?.imagenes ?? [],
-    description: source?.description ?? source?.descripcion,
-    createdAt: String(source?.createdAt ?? source?.created_at ?? source?.fecha_creacion ?? new Date().toISOString()),
-    updatedAt: String(source?.updatedAt ?? source?.updated_at ?? source?.fecha_actualizacion ?? new Date().toISOString()),
+    description: source?.description ?? source?.descripcion ?? source?.notas,
+    createdAt: String(source?.createdAt ?? source?.created_at ?? source?.fecha_creacion ?? source?.registrado_at ?? new Date().toISOString()),
+    updatedAt: String(source?.updatedAt ?? source?.updated_at ?? source?.fecha_actualizacion ?? source?.registrado_at ?? new Date().toISOString()),
+    materials: source?.materials ?? source?.materiales ?? [],
+    tools: source?.tools ?? source?.herramientas ?? source?.equipos ?? source?.utensilios ?? [],
   };
 };
 
 const normalizeEquipmentType = (value: unknown): EquipmentItem['type'] => {
   const raw = String(value ?? '').toLowerCase();
   if (raw.includes('maquin')) return 'machinery';
-  if (raw.includes('tool') || raw.includes('utens')) return 'tool';
+  if (raw.includes('herram') || raw.includes('tool') || raw.includes('utens')) return 'tool';
   return 'equipment';
 };
 
@@ -72,21 +73,36 @@ const normalizeEquipment = (row: any): EquipmentItem => {
   const source = row?.utensilio ?? row?.item ?? row;
   return {
     id: String(source?.id ?? source?.utensilio_id ?? source?.id_utensilio ?? ''),
-    name: String(source?.name ?? source?.nombre ?? source?.descripcion ?? 'Sin nombre'),
-    type: normalizeEquipmentType(source?.type ?? source?.tipo),
-    available: Boolean(source?.available ?? source?.disponible ?? source?.estado !== 'en_uso'),
+    name: String(source?.name ?? source?.tipo_utensilio ?? source?.nombre ?? source?.descripcion ?? 'Sin nombre'),
+    type: normalizeEquipmentType(source?.type ?? source?.tipo ?? source?.clasificacion),
+    available: String(source?.status_utensilio ?? source?.estado ?? '').toLowerCase() !== 'en uso',
     description: source?.description ?? source?.descripcion,
-    nextMaintenanceDate: source?.nextMaintenanceDate ?? source?.proximo_mantenimiento ?? source?.fecha_mantenimiento,
+    nextMaintenanceDate: source?.nextMaintenanceDate ?? source?.Rangos_mantenimiento ?? source?.rangos_mantenimiento ?? source?.proximo_mantenimiento ?? source?.fecha_mantenimiento,
     lastMaintenanceDate: source?.lastMaintenanceDate ?? source?.ultimo_mantenimiento,
-    maintenanceCompleted: source?.maintenanceCompleted ?? source?.mantenimiento_completado,
+    maintenanceCompleted: String(source?.status_mantenimiento ?? '').toLowerCase() === 'al día' || source?.maintenanceCompleted === true,
     maintenanceNotes: source?.maintenanceNotes ?? source?.notas_mantenimiento,
   };
 };
 
 const toBackendUtensilioType = (type?: EquipmentItem['type']) => {
-  if (type === 'machinery') return 'maquinaria';
-  if (type === 'tool') return 'utensilio';
-  return 'equipo';
+  if (type === 'machinery') return 'Maquinaria';
+  if (type === 'tool') return 'Herramienta';
+  return 'Equipo';
+};
+
+const toBackendStatusUtensilio = (available?: boolean, maintenanceCompleted?: boolean) => {
+  if (maintenanceCompleted) return 'Disponible';
+  if (available === false) return 'En uso';
+  return 'Disponible';
+};
+
+const toBackendStatusMantenimiento = (
+  nextMaintenanceDate?: string,
+  maintenanceCompleted?: boolean
+) => {
+  if (maintenanceCompleted) return 'Al día';
+  if (nextMaintenanceDate) return 'Próximo';
+  return 'Al día';
 };
 
 const toBackendDisponibilidad = (available?: boolean) => {
@@ -179,10 +195,10 @@ export const authApi = {
 
 export const reportesApi = {
   getHistorial: async () => {
-    const response = await api.get('/api/reportes/historial');
+    const response = await api.get('/api/reportes'); // Cambiado a /api/reportes para ser más general
     const rows = Array.isArray(response.data)
       ? response.data
-      : response.data?.servicios ?? response.data?.data ?? [];
+      : response.data?.historial ?? response.data?.servicios ?? response.data?.data ?? [];
     return rows.map(normalizeService);
   },
 };
@@ -199,18 +215,25 @@ export const utensiliosApi = {
   create: async (item: Omit<EquipmentItem, 'id'>) => {
     const backendType = toBackendUtensilioType(item.type);
     const disponibilidad = toBackendDisponibilidad(item.available);
+    const statusUtensilio = toBackendStatusUtensilio(item.available, item.maintenanceCompleted);
+    const statusMantenimiento = toBackendStatusMantenimiento(item.nextMaintenanceDate, item.maintenanceCompleted);
 
     const response = await api.post('/api/utensilios', withNulls({
+      clasificacion: backendType,
+      tipo_utensilio: item.name,
       nombre: item.name,
       descripcion: item.description,
       tipo: backendType,
       disponible: disponibilidad,
-      estado: item.available ? 'disponible' : 'en_uso',
+      status_utensilio: statusUtensilio,
+      estado: statusUtensilio,
       categoria: backendType,
+      Rangos_mantenimiento: item.nextMaintenanceDate,
+      rangos_mantenimiento: item.nextMaintenanceDate,
       proximo_mantenimiento: item.nextMaintenanceDate,
+      status_mantenimiento: statusMantenimiento,
       mantenimiento_completado: item.maintenanceCompleted,
       notas_mantenimiento: item.maintenanceNotes,
-      // compatibilidad por si backend acepta claves en ingles
       name: item.name,
       type: item.type,
       available: item.available,
@@ -221,16 +244,24 @@ export const utensiliosApi = {
   update: async (id: string, updates: Partial<EquipmentItem>) => {
     const backendType = toBackendUtensilioType(updates.type);
     const disponibilidad = toBackendDisponibilidad(updates.available);
+    const statusUtensilio = toBackendStatusUtensilio(updates.available, updates.maintenanceCompleted);
+    const statusMantenimiento = toBackendStatusMantenimiento(updates.nextMaintenanceDate, updates.maintenanceCompleted);
 
     const response = await api.put(`/api/utensilios/${id}`, withNulls({
+      clasificacion: backendType,
+      tipo_utensilio: updates.name,
       nombre: updates.name,
       descripcion: updates.description,
       tipo: backendType,
       disponible: disponibilidad,
-      estado: updates.available === undefined ? undefined : (updates.available ? 'disponible' : 'en_uso'),
+      status_utensilio: statusUtensilio,
+      estado: updates.available === undefined ? undefined : statusUtensilio,
       categoria: updates.type === undefined ? undefined : backendType,
+      Rangos_mantenimiento: updates.nextMaintenanceDate,
+      rangos_mantenimiento: updates.nextMaintenanceDate,
       proximo_mantenimiento: updates.nextMaintenanceDate,
       ultimo_mantenimiento: updates.lastMaintenanceDate,
+      status_mantenimiento: statusMantenimiento,
       mantenimiento_completado: updates.maintenanceCompleted,
       notas_mantenimiento: updates.maintenanceNotes,
       name: updates.name,
@@ -246,10 +277,14 @@ export const utensiliosApi = {
 
   scheduleMaintenance: async (id: string, payload: { nextMaintenanceDate: string; maintenanceNotes?: string }) => {
     await api.post(`/api/utensilios/${id}/mantenimiento`, withNulls({
+      Rangos_mantenimiento: payload.nextMaintenanceDate,
+      rangos_mantenimiento: payload.nextMaintenanceDate,
       fecha_mantenimiento: payload.nextMaintenanceDate,
       notas_mantenimiento: payload.maintenanceNotes,
       nextMaintenanceDate: payload.nextMaintenanceDate,
       maintenanceNotes: payload.maintenanceNotes,
+      status_mantenimiento: 'Próximo',
+      status_utensilio: 'Mantenimiento',
     }));
   },
 };

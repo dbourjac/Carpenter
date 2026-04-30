@@ -146,7 +146,10 @@ export function EquipmentPage() {
 
     try {
       if (editingItem) {
-        await utensiliosApi.update(editingItem.id, itemData);
+        await utensiliosApi.update(editingItem.id, {
+          ...editingItem,
+          ...itemData,
+        });
         toast.success('Item actualizado correctamente');
       } else {
         await utensiliosApi.create(itemData);
@@ -179,7 +182,10 @@ export function EquipmentPage() {
 
   const toggleAvailability = async (item: EquipmentItem) => {
     try {
-      const updated = await utensiliosApi.update(item.id, { available: !item.available });
+      const updated = await utensiliosApi.update(item.id, {
+        ...item,
+        available: !item.available,
+      });
       await loadEquipment();
       toast.success(updated.available ? 'Marcado como disponible' : 'Marcado como no disponible');
     } catch (err) {
@@ -224,6 +230,7 @@ export function EquipmentPage() {
       } catch {
         // fallback: algunos backends guardan mantenimiento desde update directo
         await utensiliosApi.update(maintenanceItem.id, {
+          ...maintenanceItem,
           nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
           maintenanceCompleted: false,
           maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
@@ -249,6 +256,7 @@ export function EquipmentPage() {
 
     try {
       await utensiliosApi.update(item.id, {
+        ...item,
         maintenanceCompleted: true,
         lastMaintenanceDate: new Date().toISOString(),
       });

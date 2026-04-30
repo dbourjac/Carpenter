@@ -33,6 +33,8 @@ export interface ServiceRequest {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  materials?: Material[]; // Añadido para reportes
+  tools?: string[];       // Añadido para reportes
 }
 
 export interface Material {
