@@ -53,10 +53,10 @@ const withNulls = <T extends Record<string, any>>(payload: T): Partial<T> => {
 
 
 const normalizeServiceType = (value: unknown): ServiceType => {
-  const raw = String(value ?? '').toLowerCase();
+  const raw = String(value ?? '').toLowerCase().trim();
   if (raw.includes('prevent')) return 'preventive';
-  if (raw.includes('instal')) return 'installation';
-  if (raw.includes('corr')) return 'corrective';
+  if (raw.includes('instal'))  return 'installation';
+  if (raw.includes('corr') || raw.includes('repar')) return 'corrective';
   return 'other';
 };
 
@@ -111,9 +111,7 @@ const normalizeService = (row: any): ServiceRequest => {
     requesterArea:  source?.nombre_area     ?? source?.area_solicitante    ?? '',
     assignedTechnician: String(
         source?.personal_id        ?? source?.tecnico_id   ?? source?.id_personal ??
-        source?.assignedTechnician ?? source?.tecnico_asignado ?? ''
-
-),
+        source?.assignedTechnician ?? source?.tecnico_asignado ?? ''),
     equipment:      source?.equipment ?? source?.equipos    ?? source?.utensilios ?? [],
     observations:   String(source?.observaciones ?? source?.seguimiento ?? source?.observations ?? ''),
     location:       extractedLoc  || source?.location    || '',
@@ -121,6 +119,7 @@ const normalizeService = (row: any): ServiceRequest => {
     evidenceImages: source?.evidenceImages ?? source?.evidencias ?? source?.imagenes ?? [],
     createdAt: String(source?.createdAt   ?? source?.created_at        ?? source?.fecha_creacion      ?? new Date().toISOString()),
     updatedAt: String(source?.updatedAt   ?? source?.updated_at        ?? source?.fecha_actualizacion ?? new Date().toISOString()),
+    solicitanteId: String(source?.solicitante_id ?? source?.id_solicitante ?? ''), // ← agrega
   };
 };
 
@@ -190,6 +189,26 @@ const toBackendServicePriority = (priority?: string): string => {
 const packUbicacion = (location?: string, description?: string): string =>
     `${location || ''} | ${description || ''}`;
 
+const toDate = (val?: string | null): string | null => {
+  if (!val) return null;
+  return val.split('T')[0]; // '2026-04-29T07:00:00.000Z' → '2026-04-29'
+};
+
+const toBackendService = (datos: any) => {
+  const payload: Record<string, any> = {
+    nombre_servicio: datos.name || 'S/N',
+    tipo_servicio:   toBackendServiceType(datos.type),
+    prioridad:       toBackendServicePriority(datos.priority),
+    status:          toBackendServiceStatus(datos.status),
+    ubicacion:       packUbicacion(datos.location, datos.description),
+    fecha_inicio:    toDate(datos.startDate),   // ← cambia
+    fecha_fin:       toDate(datos.endDate),      // ← cambia
+    solicitante_id:  datos.solicitanteId ?? null,
+    personal_id:     datos.assignedTechnician ?? null,
+    observaciones:   datos.observations ?? null,
+  };
+
+/*
 const toBackendService = (datos: any) => {
   const payload: Record<string, any> = {
     nombre_servicio: datos.name || 'S/N',
@@ -202,7 +221,7 @@ const toBackendService = (datos: any) => {
     solicitante_id:  datos.solicitanteId          ?? null,
     personal_id:     datos.assignedTechnician     ?? null,
     observaciones:   datos.observations           ?? null,
-  };
+  };*/
 
   // Convierte cualquier undefined que haya quedado a null
   const clean = Object.fromEntries(
@@ -212,6 +231,7 @@ const toBackendService = (datos: any) => {
   console.log('[toBackendService] payload enviado:', JSON.stringify(clean, null, 2));
   return clean;
 };
+
 const toBackendSolicitante = (datos: any) => {
   return withNulls({
     nombre_contacto: datos.name      ?? datos.requesterName  ?? null,
@@ -235,7 +255,6 @@ const toBackendDisponibilidad = (available?: boolean): number | undefined => {
 };
 
 // API — AUTENTICACIÓN
-
 
 export const authApi = {
   login: async (email: string, password: string) => {
@@ -409,8 +428,13 @@ export const serviceApi = {
   },
 
   update: async (id: string, datos: any) => {
-    const response = await api.put(`/api/servicios/${id}`, toBackendService(datos));
-    return normalizeService(response.data);
+    try {
+      const response = await api.put(`/api/servicios/${id}`, toBackendService(datos));
+      return normalizeService(response.data);
+    } catch (error: any) {
+      console.error('[serviceApi.update] Error detalle:', error.response?.data);
+      throw error;
+    }
   },
 
   remove: async (id: string) => {
@@ -452,9 +476,22 @@ export const serviceApi = {
 
   // --- Evidencias ---
 
-  addEvidencia: async (id: string, datos: { imagen: string }) => {
-    const response = await api.post(`/api/servicios/${id}/evidencias`, datos);
-    return normalizeService(response.data);
+  addEvidencia: async (id: string, datos: { imagen: string; tipo?: 'inicio' | 'fin' }) => {
+    try {
+      const response = await api.post(`/api/servicios/${id}/evidencias`, {
+        image: datos.imagen,
+        tipo: datos.tipo ?? 'inicio',
+      });
+      return normalizeService(response.data);
+    } catch (error: any) {
+      console.error('[addEvidencia] Error detalle:', error.response?.data);
+      throw error;
+    }
+  },
+
+  getEvidencias: async (id: string) => {
+    const response = await api.get(`/api/servicios/${id}/evidencias`);
+    return Array.isArray(response.data) ? response.data : response.data?.evidencias ?? [];
   },
 
   deleteEvidencia: async (id: string, evidencia_id: string | number) => {
@@ -490,10 +527,15 @@ export const seguimientoApi = {
   },
 
   update: async (id: string, observaciones: string) => {
-    const response = await api.put(`/api/seguimiento/${id}`, withNulls({
-      observaciones,
-    }));
-    return response.data;
+    try {
+      const response = await api.patch(`/api/seguimiento/${id}/observaciones`, {
+        observaciones: observaciones ?? null,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('[seguimientoApi.update] Error detalle:', error.response?.data);
+      throw error;
+    }
   },
 
   remove: async (id: string) => {
