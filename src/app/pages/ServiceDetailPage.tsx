@@ -11,7 +11,14 @@ import {Separator} from '../components/ui/separator';
 import {Textarea} from '../components/ui/textarea';
 import {seguimientoApi, serviceApi, technicianApi} from '../lib/api';
 import {getEquipment} from '../lib/storage';
-import {getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate} from '../lib/utils';
+import {
+    getStatusLabel,
+    getTypeLabel,
+    getPriorityLabel,
+    getStatusColor,
+    getPriorityColor,
+    formatDate
+} from '../lib/utils';
 import {ServiceStatus, ServicePriority, ServiceRequest} from '../lib/types';
 import {toast} from 'sonner';
 
@@ -95,7 +102,7 @@ export function ServiceDetailPage() {
 
     const handleUpdateBasicInfo = async () => {
         try {
-            // Primero actualiza info general
+            // actualiza info general
             const updated = await serviceApi.update(service.id, {
                 name: service.name,
                 type: service.type,
@@ -293,12 +300,14 @@ export function ServiceDetailPage() {
                             {service.equipment.length > 0 && (
                                 <div className="space-y-2">
                                     {service.equipment.map((item, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <div key={index}
+                                             className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2 h-2 bg-green-500 rounded-full"/>
                                                 <span className="font-medium text-gray-900">{item}</span>
                                             </div>
-                                            <Button variant="ghost" size="sm" onClick={() => handleRemoveEquipment(item, index)}>
+                                            <Button variant="ghost" size="sm"
+                                                    onClick={() => handleRemoveEquipment(item, index)}>
                                                 <X className="h-4 w-4 text-red-600"/>
                                             </Button>
                                         </div>
@@ -361,9 +370,9 @@ export function ServiceDetailPage() {
                                                 variant="destructive"
                                                 size="icon"
                                                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                                onClick={() => setImageToDelete({ ev, index })}
+                                                onClick={() => setImageToDelete({ev, index})}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4"/>
                                             </Button>
                                         </div>
                                     ))}
@@ -371,9 +380,10 @@ export function ServiceDetailPage() {
                             )}
                             <div className="space-y-2">
                                 <Label>Cargar Imagen</Label>
-                                <Select value={evidenciaTipo} onValueChange={(v) => setEvidenciaTipo(v as 'inicio' | 'fin')}>
+                                <Select value={evidenciaTipo}
+                                        onValueChange={(v) => setEvidenciaTipo(v as 'inicio' | 'fin')}>
                                     <SelectTrigger>
-                                        <SelectValue />
+                                        <SelectValue/>
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="inicio">Inicio</SelectItem>
@@ -397,11 +407,11 @@ export function ServiceDetailPage() {
                                                 if (fileInputRef.current) fileInputRef.current.value = '';
                                             }}
                                         >
-                                            <X className="h-4 w-4" />
+                                            <X className="h-4 w-4"/>
                                         </Button>
                                     )}
                                     <Button onClick={handleUploadImage} className="bg-orange-600 hover:bg-orange-700">
-                                        <Upload className="mr-2 h-4 w-4" />Subir
+                                        <Upload className="mr-2 h-4 w-4"/>Subir
                                     </Button>
                                 </div>
                             </div>
@@ -435,7 +445,8 @@ export function ServiceDetailPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="priority">Prioridad</Label>
-                                <Select value={priority} onValueChange={(value) => setPriority(value as ServicePriority)}>
+                                <Select value={priority}
+                                        onValueChange={(value) => setPriority(value as ServicePriority)}>
                                     <SelectTrigger id="priority">
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -478,7 +489,8 @@ export function ServiceDetailPage() {
                                 <Input id="estimatedCompletion" type="date" value={estimatedCompletion}
                                        onChange={(e) => setEstimatedCompletion(e.target.value)}/>
                             </div>
-                            <Button onClick={handleUpdateBasicInfo} className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+                            <Button onClick={handleUpdateBasicInfo}
+                                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
                                 <Save className="mr-2 h-4 w-4"/>Guardar Cambios
                             </Button>
                         </CardContent>
@@ -498,7 +510,8 @@ export function ServiceDetailPage() {
                                           value={observations} onChange={(e) => setObservations(e.target.value)}
                                           rows={6} className="resize-none"/>
                             </div>
-                            <Button onClick={handleUpdateObservations} variant="outline" className="w-full bg-gradient-to-r from-blue-200 to-blue-300 hover:from-blue-300 hover:to-blue-400 text-black font-semibold">
+                            <Button onClick={handleUpdateObservations} variant="outline"
+                                    className="w-full bg-gradient-to-r from-blue-200 to-blue-300 hover:from-blue-300 hover:to-blue-400 text-black font-semibold">
                                 <Save className="mr-2 h-4 w-4"/> Actualizar Observaciones
                             </Button>
                         </CardContent>

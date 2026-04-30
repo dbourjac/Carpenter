@@ -21,7 +21,8 @@ export function ServicesListPage() {
     const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>(
         (searchParams.get('status') as any) ?? 'all'
-    );    const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
+    );
+    const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
 
     // Cargamos los servicios del backend al montar el componente
     useEffect(() => {
@@ -40,10 +41,6 @@ export function ServicesListPage() {
 
         fetchServices();
     }, []);
-
-    useEffect(() => {
-        console.log(services.map(s => ({ name: s.name, status: s.status })));
-    }, [services]);
 
     // Función para eliminar un servicio
     const handleDelete = async () => {
@@ -64,7 +61,7 @@ export function ServicesListPage() {
             service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             service.requesterName.toLowerCase().includes(searchTerm.toLowerCase())
         )
-        .filter(service => statusFilter=== 'all' || service.status === statusFilter)
+        .filter(service => statusFilter === 'all' || service.status === statusFilter)
         .filter(service => priorityFilter === 'all' || service.priority === priorityFilter);
 
     return (
@@ -124,58 +121,58 @@ export function ServicesListPage() {
                         </div>
                     </div>
                 </CardHeader>
-    <CardContent className="pt-6">
-        {loading ? (
-            <div className="py-12 text-center text-gray-500 italic">Cargando servicios desde el
-                servidor...</div>
-        ) : filteredServices.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">No se encontraron servicios registrados.</div>
-        ) : (
-            <div className="grid gap-4">
-                {filteredServices.map((service) => (
-                    <div key={service.id}
-                         className="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition-all group">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-lg text-gray-900">{service.name}</h3>
-                                <Badge
-                                    className={getStatusColor(service.status)}>{getStatusLabel(service.status)}</Badge>
-                                <Badge
-                                    className={`${getPriorityColor(service.priority)} border ${
-                                        service.priority === 'high' ? 'animate-pulse' : ''
-                                    }`}>
-                                    {getPriorityLabel(service.priority)}
-                                </Badge>
-                            </div>
-                            <p className="text-sm text-gray-600">
-                                Solicitante: <span
-                                className="font-medium">{service.requesterName}</span> • {formatDate(service.startDate)}
-                            </p>
+                <CardContent className="pt-6">
+                    {loading ? (
+                        <div className="py-12 text-center text-gray-500 italic">Cargando servicios desde el
+                            servidor...</div>
+                    ) : filteredServices.length === 0 ? (
+                        <div className="py-12 text-center text-gray-500">No se encontraron servicios registrados.</div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {filteredServices.map((service) => (
+                                <div key={service.id}
+                                     className="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50 transition-all group">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-lg text-gray-900">{service.name}</h3>
+                                            <Badge
+                                                className={getStatusColor(service.status)}>{getStatusLabel(service.status)}</Badge>
+                                            <Badge
+                                                className={`${getPriorityColor(service.priority)} border ${
+                                                    service.priority === 'high' ? 'animate-pulse' : ''
+                                                }`}>
+                                                {getPriorityLabel(service.priority)}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-gray-600">
+                                            Solicitante: <span
+                                            className="font-medium">{service.requesterName}</span> • {formatDate(service.startDate)}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => navigate(`/services/${service.id}`)}
+                                            className="hover:bg-blue-50 hover:text-blue-600"
+                                        >
+                                            <Eye className="h-4 w-4"/>
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => setServiceToDelete(service.id)}
+                                        >
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => navigate(`/services/${service.id}`)}
-                                className="hover:bg-blue-50 hover:text-blue-600"
-                            >
-                                <Eye className="h-4 w-4"/>
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => setServiceToDelete(service.id)}
-                            >
-                                <Trash2 className="h-4 w-4"/>
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        )}
-    </CardContent>
-</Card>
+                    )}
+                </CardContent>
+            </Card>
             {serviceToDelete && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full space-y-4">
@@ -193,7 +190,7 @@ export function ServicesListPage() {
                 </div>
             )}
 
-</div>
-)
-    ;
+        </div>
+    )
+        ;
 }
