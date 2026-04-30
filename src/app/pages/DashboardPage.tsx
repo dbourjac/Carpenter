@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
+
 import {
   CheckCircle2,
   Clock,
@@ -21,6 +22,8 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
+  const location = useLocation();
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,7 +43,7 @@ export function DashboardPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [location.key]); // ← cambia [] por [location.key]
 
 // Helper para obtener el nombre por id
   const getTechnicianName = (id: string) => {
