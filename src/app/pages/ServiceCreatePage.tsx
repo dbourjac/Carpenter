@@ -1,15 +1,16 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router';
-import {ArrowLeft, Save} from 'lucide-react';
+import {ArrowLeft, Plus, Save, X} from 'lucide-react';
 import {Button} from '../components/ui/button';
 import {Input} from '../components/ui/input';
 import {Label} from '../components/ui/label';
 import {Textarea} from '../components/ui/textarea';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '../components/ui/card';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '../components/ui/select';
-import {serviceApi, solicitanteApi, technicianApi, seguimientoApi} from '../lib/api';
-import {ServiceType, ServicePriority} from '../lib/types';
+import {serviceApi, solicitanteApi, technicianApi, seguimientoApi, utensiliosApi} from '../lib/api';
+import {ServiceType, ServicePriority, EquipmentItem} from '../lib/types';
 import {toast} from 'sonner';
+import {Separator} from "../components/ui/separator.tsx";
 
 export function ServiceCreatePage() {
     const navigate = useNavigate();
@@ -18,7 +19,7 @@ export function ServiceCreatePage() {
         type: 'corrective' as ServiceType,
         priority: 'medium' as ServicePriority,
         startDate: '',
-        endDate: '',
+        //endDate: '',
         estimatedCompletionDate: '',
         requesterName: '',
         requesterPhone: '',
@@ -28,10 +29,25 @@ export function ServiceCreatePage() {
         location: '',
         description: '',
         observations: '',
+        equipment: [],
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [technicians, setTechnicians] = useState<any[]>([]);
+    const [newEquipment, setNewEquipment] = useState('')
+    const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
+
+    useEffect(() => {
+        const loadEquipment = async () => {
+            try {
+                const data = await utensiliosApi.getAll();
+                setAvailableEquipment(data);
+            } catch (error) {
+                console.error('Error cargando equipos');
+            }
+        };
+        loadEquipment();
+    }, []);
 
     useEffect(() => {
         const loadTechnicians = async () => {
@@ -61,13 +77,34 @@ export function ServiceCreatePage() {
         if (!formData.assignedTechnician.trim()) {
             newErrors.assignedTechnician = 'El técnico asignado es requerido';
         }
-        if (!formData.endDate) newErrors.endDate = 'La fecha de fin es requerida';
-        if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
-            newErrors.endDate = 'La fecha de fin debe ser posterior a la de inicio';
+        if (!formData.equipment || formData.equipment.length === 0) {
+            newErrors.equipment = 'Debe asignar al menos un equipo o herramienta';
+        }
+        if (formData.startDate && formData.estimatedCompletionDate && formData.estimatedCompletionDate < formData.startDate) {
+            newErrors.endDate = 'La fecha de finalización estimada debe ser posterior a la de inicio';
         }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handleAddEquipment = () => {
+        if (!newEquipment.trim()) {
+            toast.error('Ingrese un equipo');
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            equipment: [...prev.equipment, newEquipment]
+        }));
+        setNewEquipment('');
+    };
+
+    const handleRemoveEquipment = (item: string, index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            equipment: prev.equipment.filter((_, i) => i !== index)
+        }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -86,14 +123,14 @@ export function ServiceCreatePage() {
                 area: formData.requesterArea,
             });
 
-            // 2. Crear el servicio (el backend crea el seguimiento automáticamente)
+            // 2. Crear el servicio
             const newService = await serviceApi.create({
                 name: formData.name,
                 type: formData.type,
                 priority: formData.priority,
                 status: 'pending',
                 startDate: formData.startDate,
-                endDate: formData.endDate,
+                endDate: undefined,
                 estimatedCompletionDate: formData.estimatedCompletionDate || undefined,
                 solicitanteId: requester.id,
                 assignedTechnician: formData.assignedTechnician || undefined,
@@ -101,6 +138,13 @@ export function ServiceCreatePage() {
                 description: formData.description || undefined,
                 observations: formData.observations || undefined,
             });
+
+            // 3. Agregar utensilios
+            if (formData.equipment && formData.equipment.length > 0) {
+                for (const equipmentName of formData.equipment) {
+                    await serviceApi.addUtensilio(newService.id, equipmentName);
+                }
+            }
 
             toast.success('Servicio creado exitosamente');
             navigate(`/services/${newService.id}`);
@@ -215,7 +259,7 @@ export function ServiceCreatePage() {
                                 {errors.startDate && <p className="text-sm text-red-600">{errors.startDate}</p>}
                             </div>
 
-                            <div className="space-y-2">
+                            {/*}  <div className="space-y-2">*
                                 <Label htmlFor="endDate">Fecha de Fin *</Label>
                                 <Input
                                     id="endDate"
@@ -225,7 +269,7 @@ export function ServiceCreatePage() {
                                     className={`h-11 ${errors.endDate ? 'border-red-500' : ''}`}
                                 />
                                 {errors.endDate && <p className="text-sm text-red-600">{errors.endDate}</p>}
-                            </div>
+                            </div>*/}
 
                             <div className="space-y-2">
                                 <Label htmlFor="estimatedCompletionDate">Fecha Estimada Finalización</Label>
@@ -317,7 +361,7 @@ export function ServiceCreatePage() {
                     </CardContent>
                 </Card>
 
-                {/* Asignación */}
+                {/* Asignación de técnico */}
                 <Card className="border-0 shadow-lg">
                     <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50/50 border-b">
                         <CardTitle>Asignación</CardTitle>
@@ -362,13 +406,76 @@ export function ServiceCreatePage() {
                     </CardContent>
                 </Card>
 
+                {/* Asignar Equipment/Tools*/}
+                <Card className="border-0 shadow-lg">
+                    <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50/50 border-b">
+                        <CardTitle>Equipos y Herramientas Asignadas</CardTitle>
+                        <CardDescription>Recursos utilizados en este servicio</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-4">
+                        {formData.equipment.length > 0 && (
+                            <div className="space-y-2">
+                                {formData.equipment.map((item, index) => (
+                                    <div key={index}
+                                         className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full"/>
+                                            <span className="font-medium text-gray-900">{item}</span>
+                                        </div>
+                                        <Button variant="ghost" size="sm"
+                                                onClick={() => handleRemoveEquipment(item, index)}>
+                                            <X className="h-4 w-4 text-red-600"/>
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <Separator/>
+                        <div className="space-y-2">
+                            <Label>Agregar Equipo/Herramienta</Label>
+                            <div className="flex gap-2">
+                                <Select value={newEquipment} onValueChange={setNewEquipment}>
+                                    <SelectTrigger className="flex-1">
+                                        <SelectValue placeholder="Seleccionar del inventario..."/>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableEquipment
+                                            .filter(e => e.available && e.name && e.name.trim() !== '')
+                                            .filter((item, index, arr) => arr.findIndex(x => x.name === item.name) === index)
+                                            .map((item) => (
+                                                <SelectItem key={item.id} value={item.name}>
+                                                    {item.name}
+                                                </SelectItem>
+                                            ))
+                                        }
+                                    </SelectContent>
+                                </Select>
+                                <Button type ="button" onClick={handleAddEquipment}>
+                                    <Plus className="h-4 w-4 mr-1"/>Agregar
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">O escriba manualmente:</p>
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Nombre del equipo o herramienta"
+                                    value={newEquipment}
+                                    onChange={(e) => setNewEquipment(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
+                                />
+                                <Button type="button" onClick={handleAddEquipment}>
+                                    <Plus className="h-4 w-4"/>
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Acciones */}
                 <div className="flex gap-3">
                     <Button
                         type="submit"
                         size="lg"
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg"
-                    >
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg">
                         <Save className="mr-2 h-5 w-5"/>
                         Crear Servicio
                     </Button>
@@ -376,8 +483,7 @@ export function ServiceCreatePage() {
                         type="button"
                         variant="outline"
                         size="lg"
-                        onClick={() => navigate('/services')}
-                    >
+                        onClick={() => navigate('/services')}>
                         Cancelar
                     </Button>
                 </div>

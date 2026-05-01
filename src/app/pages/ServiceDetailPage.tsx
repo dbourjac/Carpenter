@@ -1,6 +1,18 @@
 import {useState, useEffect, useRef} from 'react';
 import {useParams, useNavigate} from 'react-router';
-import {ArrowLeft, Save, Plus, X, Upload, Trash2, MapPin, Calendar, User as UserIcon, AlertCircle} from 'lucide-react';
+import {
+    ArrowLeft,
+    Save,
+    Plus,
+    X,
+    Upload,
+    Trash2,
+    MapPin,
+    Calendar,
+    User as UserIcon,
+    AlertCircle,
+    CheckCircle2
+} from 'lucide-react';
 import {Button} from '../components/ui/button';
 import {Input} from '../components/ui/input';
 import {Label} from '../components/ui/label';
@@ -9,8 +21,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '../
 import {Badge} from '../components/ui/badge';
 import {Separator} from '../components/ui/separator';
 import {Textarea} from '../components/ui/textarea';
-import {seguimientoApi, serviceApi, technicianApi} from '../lib/api';
-import {getEquipment} from '../lib/storage';
+import {seguimientoApi, serviceApi, technicianApi, utensiliosApi} from '../lib/api';
 import {
     getStatusLabel,
     getTypeLabel,
@@ -19,7 +30,7 @@ import {
     getPriorityColor,
     formatDate
 } from '../lib/utils';
-import {ServiceStatus, ServicePriority, ServiceRequest} from '../lib/types';
+import {ServiceStatus, ServicePriority, ServiceRequest, EquipmentItem} from '../lib/types';
 import {toast} from 'sonner';
 
 export function ServiceDetailPage() {
@@ -39,8 +50,9 @@ export function ServiceDetailPage() {
     const [evidenciaTipo, setEvidenciaTipo] = useState<'inicio' | 'fin'>('inicio');
     const [evidencias, setEvidencias] = useState<{ id: number; url_image: string; tipo: 'inicio' | 'fin' }[]>([]);
     const [imageToDelete, setImageToDelete] = useState<{ ev: any; index: number } | null>(null);
+    const [completionNotes, setCompletionNotes] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const availableEquipment = getEquipment();
+    const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
 
     useEffect(() => {
         const loadTechnicians = async () => {
@@ -55,6 +67,19 @@ export function ServiceDetailPage() {
     }, []);
 
     useEffect(() => {
+        const loadEquipment = async () => {
+            try {
+                const data = await utensiliosApi.getAll();
+                setAvailableEquipment(data);
+            } catch (error) {
+                console.error('Error cargando equipos');
+            }
+        };
+        setNewEquipment("");
+        loadEquipment();
+    }, []);
+
+    useEffect(() => {
         const fetchService = async () => {
             try {
                 const data = await serviceApi.getById(id!);
@@ -63,7 +88,7 @@ export function ServiceDetailPage() {
                 setPriority(data.priority);
                 setAssignedTechnician(String(data.assignedTechnician || ''));
                 setLocation(data.location || '');
-                setEstimatedCompletion(data.estimatedCompletionDate || '');
+                setEstimatedCompletion(data.estimatedCompletionDate?.split('T')[0] || '');
             } catch (error) {
                 toast.error('Servicio no encontrado');
                 navigate('/services');
@@ -75,12 +100,17 @@ export function ServiceDetailPage() {
     useEffect(() => {
         const loadSeguimiento = async () => {
             try {
-                const data = await seguimientoApi.getByServiceId(id!);
+                const data = await seguimientoApi.getById(id!);
+                //console.log('[seguimiento data]', data);
                 const item = Array.isArray(data) ? data[0] : data;
+                //console.log('[seguimiento item]', data);
                 setSeguimientoId(String(item?.id ?? ''));
                 setObservations(item?.observaciones ?? '');
+                if (item?.fecha_fin_estimada) {
+                    setEstimatedCompletion(item.fecha_fin_estimada.split('T')[0]);
+                }
             } catch (error) {
-                console.error('Error cargando seguimiento');
+                console.error('Error cargando seguimiento', error);
             }
         };
         loadSeguimiento();
@@ -102,40 +132,55 @@ export function ServiceDetailPage() {
 
     const handleUpdateBasicInfo = async () => {
         try {
-            // actualiza info general
-            const updated = await serviceApi.update(service.id, {
-                name: service.name,
-                type: service.type,
-                description: service.description,
-                startDate: service.startDate,
-                endDate: service.endDate,
-                solicitanteId: service.solicitanteId,
-                status,
-                priority,
-                assignedTechnician: assignedTechnician || undefined,
-                location: location || undefined,
-                estimatedCompletionDate: estimatedCompletion || undefined,
-            });
+            let updated;
 
-            // Si cambió a completado, llama al endpoint específico
             if (status === 'completed' && service.status !== 'completed') {
-                await serviceApi.completar(service.id, new Date().toISOString().split('T')[0]);
+                // Completar servicio
+                console.log('[completar payload]', {
+                    fecha_fin: new Date().toISOString().split('T')[0],
+                    notas: completionNotes,
+                });
+                updated = await serviceApi.completar(service.id, {
+                    fecha_fin: new Date().toISOString().split('T')[0],
+                    notas: completionNotes,
+                });
+            } else if (status !== service.status) {
+                // Solo cambió status
+                updated = await serviceApi.cambiarStatus(service.id, status);
+            } else if (priority !== service.priority) {
+                // Solo cambió prioridad
+                updated = await serviceApi.cambiarPrioridad(service.id, priority);
+            } else {
+                // Cambios en otros campos
+                updated = await serviceApi.update(service.id, {
+                    name: service.name,
+                    type: service.type,
+                    description: service.description,
+                    startDate: service.startDate,
+                    endDate: service.endDate,
+                    solicitanteId: service.solicitanteId,
+                    status,
+                    priority,
+                    assignedTechnician: assignedTechnician || undefined,
+                    location: location || undefined,
+                    estimatedCompletionDate: estimatedCompletion || undefined,
+                });
             }
 
             setService(updated);
             toast.success('Información actualizada correctamente');
-        } catch (error) {
-            toast.error('Error al actualizar');
+        } catch (error: any) {
+            const mensaje = error.response?.data?.message || 'Error al actualizar';
+            toast.error(mensaje);
         }
     };
-
     const handleUpdateObservations = async () => {
         if (!seguimientoId) {
             toast.error('No se encontró el registro de seguimiento');
             return;
         }
         try {
-            await seguimientoApi.update(seguimientoId, observations);
+            await seguimientoApi.updateObservaciones(seguimientoId, observations);
             toast.success('Observaciones actualizadas');
         } catch (error) {
             toast.error('Error al actualizar observaciones');
@@ -148,7 +193,7 @@ export function ServiceDetailPage() {
             return;
         }
         try {
-            const updated = await serviceApi.addUtensilio(service.id, {nombre: newEquipment});
+            const updated = await serviceApi.addUtensilio(service.id, newEquipment);
             setService(updated);
             setNewEquipment('');
             toast.success('Equipo agregado');
@@ -230,11 +275,24 @@ export function ServiceDetailPage() {
                     {/* General Information */}
                     <Card className="border-0 shadow-lg">
                         <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50/50 border-b">
+                            {service.status === 'completed' && (
+                                <div className="bg-green-50 border-2 border-green-400 rounded-lg p-4 mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <CheckCircle2 className="h-6 w-6 text-green-600"/>
+                                        <div>
+                                            <p className="font-semibold text-green-900">Servicio Finalizado</p>
+                                            <p className="text-sm text-green-700">
+                                                Fecha de finalización: {formatDate(service.endDate)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <CardTitle>Información General</CardTitle>
                             <CardDescription>Datos básicos del servicio</CardDescription>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Tipo de Servicio</p>
                                     <p className="font-semibold text-gray-900">{getTypeLabel(service.type)}</p>
@@ -248,10 +306,6 @@ export function ServiceDetailPage() {
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Fecha de Inicio</p>
                                     <p className="font-semibold text-gray-900">{formatDate(service.startDate)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600 mb-1">Fecha de Fin</p>
-                                    <p className="font-semibold text-gray-900">{formatDate(service.endDate)}</p>
                                 </div>
                             </div>
                             {service.description && (
@@ -290,64 +344,122 @@ export function ServiceDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Equipment/Tools Assigned */}
+                    {/*Equipment/Tools Assigned */}
+
                     <Card className="border-0 shadow-lg">
+
                         <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50/50 border-b">
+
                             <CardTitle>Equipos y Herramientas Asignadas</CardTitle>
+
                             <CardDescription>Recursos utilizados en este servicio</CardDescription>
+
                         </CardHeader>
+
                         <CardContent className="pt-6 space-y-4">
+
                             {service.equipment.length > 0 && (
+
                                 <div className="space-y-2">
+
                                     {service.equipment.map((item, index) => (
+
                                         <div key={index}
+
                                              className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+
                                             <div className="flex items-center gap-2">
+
                                                 <div className="w-2 h-2 bg-green-500 rounded-full"/>
+
                                                 <span className="font-medium text-gray-900">{item}</span>
+
                                             </div>
+
                                             <Button variant="ghost" size="sm"
+
                                                     onClick={() => handleRemoveEquipment(item, index)}>
+
                                                 <X className="h-4 w-4 text-red-600"/>
+
                                             </Button>
+
                                         </div>
+
                                     ))}
+
                                 </div>
+
                             )}
+
                             <Separator/>
+
                             <div className="space-y-2">
+
                                 <Label>Agregar Equipo/Herramienta</Label>
+
                                 <div className="flex gap-2">
+
                                     <Select value={newEquipment} onValueChange={setNewEquipment}>
+
                                         <SelectTrigger className="flex-1">
+
                                             <SelectValue placeholder="Seleccionar del inventario..."/>
+
                                         </SelectTrigger>
+
                                         <SelectContent>
+
                                             {availableEquipment.filter(e => e.available).map((item) => (
+
                                                 <SelectItem key={item.id} value={item.name}>
+
                                                     {item.name}
+
                                                 </SelectItem>
+
                                             ))}
+
                                         </SelectContent>
+
                                     </Select>
+
                                     <Button onClick={handleAddEquipment}>
+
                                         <Plus className="h-4 w-4 mr-1"/>Agregar
+
                                     </Button>
+
                                 </div>
+
                                 <p className="text-xs text-gray-500">O escriba manualmente:</p>
+
                                 <div className="flex gap-2">
+
                                     <Input
+
                                         placeholder="Nombre del equipo o herramienta"
+
                                         value={newEquipment}
+
                                         onChange={(e) => setNewEquipment(e.target.value)}
+
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
+
                                     />
+
                                     <Button onClick={handleAddEquipment}>
+
                                         <Plus className="h-4 w-4"/>
+
                                     </Button>
+
                                 </div>
+
                             </div>
+
                         </CardContent>
+
                     </Card>
 
                     {/* Evidence */}
@@ -432,7 +544,8 @@ export function ServiceDetailPage() {
                                 <Label htmlFor="status" className="flex items-center gap-2">
                                     <AlertCircle className="h-4 w-4"/>Estado
                                 </Label>
-                                <Select value={status} onValueChange={(value) => setStatus(value as ServiceStatus)}>
+                                <Select value={status} onValueChange={(value) => setStatus(value as ServiceStatus)}
+                                        disabled={service.status === 'completed'}>
                                     <SelectTrigger id="status">
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -442,11 +555,25 @@ export function ServiceDetailPage() {
                                         <SelectItem value="completed">Completado</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {status === 'completed' && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="completionNotes">Notas al Completar</Label>
+                                        <Textarea
+                                            id="completionNotes"
+                                            placeholder="Notas que se guardarán en historial..."
+                                            value={completionNotes}
+                                            onChange={(e) => setCompletionNotes(e.target.value)}
+                                            rows={3}
+                                            className="resize-none"
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="priority">Prioridad</Label>
                                 <Select value={priority}
-                                        onValueChange={(value) => setPriority(value as ServicePriority)}>
+                                        onValueChange={(value) => setPriority(value as ServicePriority)}
+                                        disabled={service.status === 'completed'}>
                                     <SelectTrigger id="priority">
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -462,7 +589,8 @@ export function ServiceDetailPage() {
                                 <Label htmlFor="technician" className="flex items-center gap-2">
                                     <UserIcon className="h-4 w-4"/>Técnico Asignado
                                 </Label>
-                                <Select value={assignedTechnician} onValueChange={setAssignedTechnician}>
+                                <Select value={assignedTechnician} onValueChange={setAssignedTechnician}
+                                        disabled={service.status === 'completed'}>
                                     <SelectTrigger id="technician">
                                         <SelectValue placeholder="Seleccionar técnico..."/>
                                     </SelectTrigger>
@@ -480,16 +608,19 @@ export function ServiceDetailPage() {
                                     <MapPin className="h-4 w-4"/>Ubicación
                                 </Label>
                                 <Input id="location" placeholder="ej. Planta Baja - Sección 3" value={location}
-                                       onChange={(e) => setLocation(e.target.value)}/>
+                                       onChange={(e) => setLocation(e.target.value)}
+                                       disabled={service.status === 'completed'}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="estimatedCompletion" className="flex items-center gap-2">
                                     <Calendar className="h-4 w-4"/>Fecha Estimada Finalización
                                 </Label>
                                 <Input id="estimatedCompletion" type="date" value={estimatedCompletion}
-                                       onChange={(e) => setEstimatedCompletion(e.target.value)}/>
+                                       onChange={(e) => setEstimatedCompletion(e.target.value)}
+                                       disabled={service.status === 'completed'}/>
                             </div>
                             <Button onClick={handleUpdateBasicInfo}
+                                    disabled={service.status === 'completed'}
                                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
                                 <Save className="mr-2 h-4 w-4"/>Guardar Cambios
                             </Button>
@@ -508,9 +639,11 @@ export function ServiceDetailPage() {
                                 <Textarea id="observations"
                                           placeholder="Notas sobre el progreso, problemas encontrados, soluciones aplicadas..."
                                           value={observations} onChange={(e) => setObservations(e.target.value)}
+                                          disabled={service.status === 'completed'}
                                           rows={6} className="resize-none"/>
                             </div>
                             <Button onClick={handleUpdateObservations} variant="outline"
+                                    disabled={service.status === 'completed'}
                                     className="w-full bg-gradient-to-r from-blue-200 to-blue-300 hover:from-blue-300 hover:to-blue-400 text-black font-semibold">
                                 <Save className="mr-2 h-4 w-4"/> Actualizar Observaciones
                             </Button>
