@@ -125,7 +125,7 @@ const normalizeEquipment = (row: any): EquipmentItem => {
     const source = row?.utensilio ?? row?.item ?? row;
     return {
         id: String(source?.id ?? source?.utensilio_id ?? source?.id_utensilio ?? ''),
-        name: String(source?.name ?? source?.nombre ?? source?.descripcion ?? 'Sin nombre'),
+        name: String(source?.name ?? source?.nombre ?? source?.tipo_utensilio ?? 'Sin nombre'),
         type: normalizeEquipmentType(source?.type ?? source?.tipo),
         available: Boolean(source?.available ?? source?.disponible ?? source?.estado !== 'en_uso'),
         description: source?.description ?? source?.descripcion,
@@ -194,9 +194,11 @@ const toBackendService = (datos: any) => {
         ubicacion: packUbicacion(datos.location, datos.description),
         fecha_inicio: toDate(datos.startDate),
         fecha_fin: toDate(datos.endDate),
+        fecha_fin_estimada: toDate(datos.estimatedCompletionDate),
         solicitante_id: datos.solicitanteId ?? null,
         personal_id: datos.assignedTechnician ?? null,
         observaciones: datos.observations ?? null,
+        notas: datos.notas ?? null,
     };
 
     // Convierte cualquier undefined que haya quedado a null
@@ -287,7 +289,6 @@ export const authApi = {
 
 // API — REPORTES
 
-
 export const reportesApi = {
     getHistorial: async () => {
         const response = await api.get('/api/reportes/historial');
@@ -298,9 +299,7 @@ export const reportesApi = {
     },
 };
 
-
 // API — UTENSILIOS / EQUIPAMIENTO
-
 
 export const utensiliosApi = {
     getAll: async () => {
@@ -350,9 +349,7 @@ export const utensiliosApi = {
     },
 };
 
-
 // API — SOLICITANTES
-
 
 export const solicitanteApi = {
     getAll: async () => {
@@ -384,7 +381,6 @@ export const solicitanteApi = {
 
 // API — SERVICIOS DE TALLER
 
-
 export const serviceApi = {
     getAll: async () => {
         const response = await api.get('/api/servicios');
@@ -407,7 +403,7 @@ export const serviceApi = {
             const response = await api.put(`/api/servicios/${id}`, toBackendService(datos));
             return normalizeService(response.data);
         } catch (error: any) {
-            console.error('[serviceApi.update] Error detalle:', error.response?.data);
+            console.error('[serviceApi.update] Error detalle:');
             throw error;
         }
     },
@@ -418,8 +414,11 @@ export const serviceApi = {
 
     // --- Actualizaciones parciales (PATCH) ---
 
-    completar: async (id: string, fecha_fin: string) => {
-        const response = await api.patch(`/api/servicios/${id}/completar`, {fecha_fin});
+    completar: async (id: string, datos: { fecha_fin: string; notas?: string }) => {
+        const response = await api.patch(`/api/servicios/${id}/completar`, {
+            fecha_fin: datos.fecha_fin,
+            notas: datos.notas || null,
+        });
         return normalizeService(response.data);
     },
 
@@ -439,9 +438,12 @@ export const serviceApi = {
 
     // --- Utensilios dentro de un servicio ---
 
-    addUtensilio: async (id: string, datos: { nombre: string }) => {
-        const response = await api.post(`/api/servicios/${id}/utensilios`, datos);
-        return normalizeService(response.data);
+    addUtensilio: async (id: string, nombre: string) => {
+        const response = await api.post(`/api/servicios/${id}/utensilios`, {
+            utensilio_id: id,
+            nombre: nombre
+        });
+        return response.data;
     },
 
     removeUtensilio: async (id: string, utensilio_id: string | number) => {
@@ -459,7 +461,7 @@ export const serviceApi = {
             });
             return normalizeService(response.data);
         } catch (error: any) {
-            console.error('[addEvidencia] Error detalle:', error.response?.data);
+            console.error('[addEvidencia] Error detalle:');
             throw error;
         }
     },
@@ -475,13 +477,11 @@ export const serviceApi = {
     },
 };
 
-
 // API — SEGUIMIENTO DE SERVICIOS
 
-
 export const seguimientoApi = {
-    getByServiceId: async (serviceId: string) => {
-        const response = await api.get(`/api/seguimiento/servicio/${serviceId}`);
+    getById: async (serviceId: string) => {
+        const response = await api.get(`/api/seguimiento/${serviceId}`);
         return response.data;
     },
 
@@ -501,14 +501,28 @@ export const seguimientoApi = {
         return response.data;
     },
 
-    update: async (id: string, observaciones: string) => {
+    updateObservaciones: async (id: string, observaciones: string) => {
         try {
             const response = await api.patch(`/api/seguimiento/${id}/observaciones`, {
                 observaciones: observaciones ?? null,
             });
             return response.data;
         } catch (error: any) {
-            console.error('Error detalle:', error.response?.data);
+            console.error('[seguimientoApi.updateObservaciones] Error detalle:');
+            throw error;
+        }
+    },
+
+    update: async (id: string, fechaEstimada?: string, ubicacion?: string, personalId?: string) => {
+        try {
+            const response = await api.put(`/api/seguimiento/${id}`, {
+                fecha_fin_estimada: fechaEstimada ?? null,
+                ubicacion: ubicacion ?? null,
+                personal_id: personalId ?? null,
+            });
+            return response.data;
+        } catch (error: any) {
+            console.error('[seguimientoApi.update] Error:');
             throw error;
         }
     },
@@ -519,9 +533,7 @@ export const seguimientoApi = {
     },
 };
 
-
 // API — PERSONAL / TÉCNICOS
-
 
 export const technicianApi = {
     getAll: async () => {

@@ -33,6 +33,7 @@ export interface ServiceRequest {
   createdAt: string;
   updatedAt: string;
   solicitanteId?: string;
+  notas?: string;
 }
 
 /*export interface Material {
