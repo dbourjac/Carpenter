@@ -263,14 +263,14 @@ export function DashboardPage() {
                                                 <Badge
                                                     className={`${getPriorityColor(service.priority)} border ${
                                                         service.priority === 'high' ? 'animate-pulse' : ''
-                                                    }`}
-                                                >
+                                                    }`}>
                                                     {getPriorityLabel(service.priority)}
                                                 </Badge>
                                             </div>
                                             <p className="text-sm text-gray-600">
                                                 {service.requesterName} • {service.requesterArea}
-                                                {service.assignedTechnician && ` • Técnico: ${getTechnicianName(service.assignedTechnician)}`}                            </p>
+                                                {service.assignedTechnician && ` • Técnico: ${getTechnicianName(service.assignedTechnician)}`}
+                                            </p>
                                         </div>
                                         <div className="text-sm text-gray-500 text-right shrink-0">
                                             {formatRelativeDate(service.startDate)}
@@ -293,16 +293,9 @@ export function DashboardPage() {
                     <CardContent className="pt-6">
                         <ResponsiveContainer width="100%" height={280}>
                             <PieChart>
-                                <Pie
-                                    data={statusData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                    outerRadius={90}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
+                                <Pie data={statusData} cx="50%" cy="50%" labelLine={false}
+                                     label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                     outerRadius={90} fill="#8884d8" dataKey="value">
                                     {statusData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color}/>
                                     ))}

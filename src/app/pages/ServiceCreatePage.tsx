@@ -90,7 +90,13 @@ export function ServiceCreatePage() {
 
     const handleAddEquipment = () => {
         if (!newEquipment.trim()) {
-            toast.error('Ingrese un equipo');
+            toast.error('Seleccione o ingrese un equipo');
+            return;
+        }
+        // Valida que el equipo esté disponible
+        const equipo = availableEquipment.find(e => String(e.id) === newEquipment);
+        if (equipo && equipo.status_utensilio && equipo.status_utensilio !== 'Disponible') {
+            toast.error('Este equipo no está disponible');
             return;
         }
         setFormData(prev => ({
@@ -99,7 +105,6 @@ export function ServiceCreatePage() {
         }));
         setNewEquipment('');
     };
-
     const handleRemoveEquipment = (item: string, index: number) => {
         setFormData(prev => ({
             ...prev,
@@ -141,14 +146,24 @@ export function ServiceCreatePage() {
 
             // 3. Agregar utensilios
             if (formData.equipment && formData.equipment.length > 0) {
-                for (const equipmentName of formData.equipment) {
-                    await serviceApi.addUtensilio(newService.id, equipmentName);
+                for (const equipmentId of formData.equipment) {
+                    try {
+                        await serviceApi.addUtensilio(newService.id, {
+                            utensilio_id: parseInt(equipmentId),
+                            solicitante_id: requester.id
+                        });
+                    } catch (error) {
+                        console.error('Error agregando utensilio:', error);
+                    }
                 }
             }
 
             toast.success('Servicio creado exitosamente');
+            setTimeout(() => window.location.reload());
             navigate(`/services/${newService.id}`);
-        } catch (error: any) {
+
+        } catch
+            (error: any) {
             console.error('Error al crear servicio:', error.response?.data || error.message);
             toast.error('No se pudo conectar con el servidor');
         }
@@ -258,19 +273,6 @@ export function ServiceCreatePage() {
                                 />
                                 {errors.startDate && <p className="text-sm text-red-600">{errors.startDate}</p>}
                             </div>
-
-                            {/*}  <div className="space-y-2">*
-                                <Label htmlFor="endDate">Fecha de Fin *</Label>
-                                <Input
-                                    id="endDate"
-                                    type="date"
-                                    value={formData.endDate}
-                                    onChange={(e) => updateField('endDate', e.target.value)}
-                                    className={`h-11 ${errors.endDate ? 'border-red-500' : ''}`}
-                                />
-                                {errors.endDate && <p className="text-sm text-red-600">{errors.endDate}</p>}
-                            </div>*/}
-
                             <div className="space-y-2">
                                 <Label htmlFor="estimatedCompletionDate">Fecha Estimada Finalización</Label>
                                 <Input
@@ -313,7 +315,8 @@ export function ServiceCreatePage() {
                                     onChange={(e) => updateField('requesterName', e.target.value)}
                                     className={`h-11 ${errors.requesterName ? 'border-red-500' : ''}`}
                                 />
-                                {errors.requesterName && <p className="text-sm text-red-600">{errors.requesterName}</p>}
+                                {errors.requesterName &&
+                                    <p className="text-sm text-red-600">{errors.requesterName}</p>}
                             </div>
 
                             <div className="space-y-2">
@@ -325,7 +328,8 @@ export function ServiceCreatePage() {
                                     onChange={(e) => updateField('requesterArea', e.target.value)}
                                     className={`h-11 ${errors.requesterArea ? 'border-red-500' : ''}`}
                                 />
-                                {errors.requesterArea && <p className="text-sm text-red-600">{errors.requesterArea}</p>}
+                                {errors.requesterArea &&
+                                    <p className="text-sm text-red-600">{errors.requesterArea}</p>}
                             </div>
                         </div>
 
@@ -415,21 +419,26 @@ export function ServiceCreatePage() {
                     <CardContent className="pt-6 space-y-4">
                         {formData.equipment.length > 0 && (
                             <div className="space-y-2">
-                                {formData.equipment.map((item, index) => (
-                                    <div key={index}
-                                         className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-green-500 rounded-full"/>
-                                            <span className="font-medium text-gray-900">{item}</span>
-                                        </div>
-                                        <Button variant="ghost" size="sm"
-                                                onClick={() => handleRemoveEquipment(item, index)}>
-                                            <X className="h-4 w-4 text-red-600"/>
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                {formData.equipment.length > 0 && (
+                                    <div className="space-y-2">
+                                        {formData.equipment.map((equipmentId, index) => {
+                                            const equipo = availableEquipment.find(e => String(e.id) === equipmentId);
+                                            return (
+                                                <div key={index}
+                                                     className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 bg-green-500 rounded-full"/>
+                                                        <span
+                                                            className="font-medium text-gray-900">{equipo?.name || equipmentId}</span>
+                                                    </div>
+                                                    <Button variant="ghost" size="sm"
+                                                            onClick={() => handleRemoveEquipment(equipmentId, index)}>
+                                                        <X className="h-4 w-4 text-red-600"/>
+                                                    </Button>
+                                                </div>);
+                                        })}
+                                    </div>)}
+                            </div>)}
                         <Separator/>
                         <div className="space-y-2">
                             <Label>Agregar Equipo/Herramienta</Label>
@@ -439,18 +448,16 @@ export function ServiceCreatePage() {
                                         <SelectValue placeholder="Seleccionar del inventario..."/>
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {availableEquipment
-                                            .filter(e => e.available && e.name && e.name.trim() !== '')
-                                            .filter((item, index, arr) => arr.findIndex(x => x.name === item.name) === index)
+                                        {(availableEquipment || [])
+                                            .filter(e => e.status_utensilio === 'Disponible')
                                             .map((item) => (
-                                                <SelectItem key={item.id} value={item.name}>
+                                                <SelectItem key={item.id} value={String(item.id)}>
                                                     {item.name}
                                                 </SelectItem>
-                                            ))
-                                        }
+                                            ))}
                                     </SelectContent>
                                 </Select>
-                                <Button type ="button" onClick={handleAddEquipment}>
+                                <Button type="button" onClick={handleAddEquipment}>
                                     <Plus className="h-4 w-4 mr-1"/>Agregar
                                 </Button>
                             </div>

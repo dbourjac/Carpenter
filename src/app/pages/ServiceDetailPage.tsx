@@ -1,18 +1,6 @@
 import {useState, useEffect, useRef} from 'react';
 import {useParams, useNavigate} from 'react-router';
-import {
-    ArrowLeft,
-    Save,
-    Plus,
-    X,
-    Upload,
-    Trash2,
-    MapPin,
-    Calendar,
-    User as UserIcon,
-    AlertCircle,
-    CheckCircle2
-} from 'lucide-react';
+import {ArrowLeft, Save, Plus, X, Upload, Trash2, MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle2} from 'lucide-react';
 import {Button} from '../components/ui/button';
 import {Input} from '../components/ui/input';
 import {Label} from '../components/ui/label';
@@ -22,14 +10,7 @@ import {Badge} from '../components/ui/badge';
 import {Separator} from '../components/ui/separator';
 import {Textarea} from '../components/ui/textarea';
 import {seguimientoApi, serviceApi, technicianApi, utensiliosApi} from '../lib/api';
-import {
-    getStatusLabel,
-    getTypeLabel,
-    getPriorityLabel,
-    getStatusColor,
-    getPriorityColor,
-    formatDate
-} from '../lib/utils';
+import {getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate} from '../lib/utils';
 import {ServiceStatus, ServicePriority, ServiceRequest, EquipmentItem} from '../lib/types';
 import {toast} from 'sonner';
 
@@ -53,6 +34,7 @@ export function ServiceDetailPage() {
     const [completionNotes, setCompletionNotes] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
+    const [toolToDelete, setToolToDelete] = useState<{ item: string; index: number; id?: string } | null>(null);
 
     useEffect(() => {
         const loadTechnicians = async () => {
@@ -70,14 +52,30 @@ export function ServiceDetailPage() {
         const loadEquipment = async () => {
             try {
                 const data = await utensiliosApi.getAll();
-                setAvailableEquipment(data);
+                setAvailableEquipment(Array.isArray(data) ? data : []);
             } catch (error) {
                 console.error('Error cargando equipos');
+                setAvailableEquipment([]);
             }
         };
         setNewEquipment("");
         loadEquipment();
-    }, []);
+    }, [id]);
+
+    useEffect(() => {
+        const loadServiceEquipment = async () => {
+            try {
+                const data = await serviceApi.getUtensilios(id!);
+                //console.log('[equipos del servicio cargados]', data);
+                if (service && data.length > 0) {
+                    setService(prev => prev ? {...prev, equipment: data.map(e => e.tipo_utensilio || e.nombre || e.name)} : null);
+                }
+            } catch (error) {
+                console.error('Error cargando equipos del servicio');
+            }
+        };
+        if (service && id) loadServiceEquipment();
+    }, [id, service?.id]);
 
     useEffect(() => {
         const fetchService = async () => {
@@ -89,6 +87,7 @@ export function ServiceDetailPage() {
                 setAssignedTechnician(String(data.assignedTechnician || ''));
                 setLocation(data.location || '');
                 setEstimatedCompletion(data.estimatedCompletionDate?.split('T')[0] || '');
+
             } catch (error) {
                 toast.error('Servicio no encontrado');
                 navigate('/services');
@@ -128,6 +127,7 @@ export function ServiceDetailPage() {
         loadEvidencias();
     }, [id]);
 
+
     if (!service) return null;
 
     const handleUpdateBasicInfo = async () => {
@@ -164,11 +164,10 @@ export function ServiceDetailPage() {
                     assignedTechnician: assignedTechnician || undefined,
                     location: location || undefined,
                     estimatedCompletionDate: estimatedCompletion || undefined,
-                });
-            }
-
+                });}
             setService(updated);
             toast.success('Información actualizada correctamente');
+            setTimeout(() => window.location.reload());
         } catch (error: any) {
             const mensaje = error.response?.data?.message || 'Error al actualizar';
             toast.error(mensaje);
@@ -193,23 +192,24 @@ export function ServiceDetailPage() {
             return;
         }
         try {
-            const updated = await serviceApi.addUtensilio(service.id, newEquipment);
+            const updated = await serviceApi.addUtensilio(service.id, {
+                utensilio_id: parseInt(newEquipment),
+                solicitante_id: service.solicitanteId
+            });
             setService(updated);
             setNewEquipment('');
             toast.success('Equipo agregado');
-        } catch (error) {
-            toast.error('Error al agregar equipo');
+            setTimeout(() => window.location.reload());
+        } catch (error: any) {
+            console.error('[addUtensilio error]', error);
+            toast.error(error.response?.data?.message || 'Error al agregar equipo');
         }
     };
 
-    const handleRemoveEquipment = async (item: any, index: number) => {
-        try {
-            const updated = await serviceApi.removeUtensilio(service!.id, item.id || index);
-            setService(updated);
-            toast.success('Equipo eliminado');
-        } catch (error) {
-            toast.error('Error al eliminar equipo');
-        }
+    const handleRemoveEquipment = async (item: string, index: number) => {
+        const equipo = availableEquipment.find(e => e.name === item);
+        setToolToDelete({ item, index, id: equipo?.id });
+        setTimeout(() => window.location.reload());
     };
 
     const handleUploadImage = async () => {
@@ -299,9 +299,7 @@ export function ServiceDetailPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">ID de Servicio</p>
-                                    <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded inline-block">
-                                        #{service.id}
-                                    </p>
+                                    <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded inline-block">#{service.id}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Fecha de Inicio</p>
@@ -345,121 +343,71 @@ export function ServiceDetailPage() {
                     </Card>
 
                     {/*Equipment/Tools Assigned */}
-
                     <Card className="border-0 shadow-lg">
-
                         <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50/50 border-b">
-
                             <CardTitle>Equipos y Herramientas Asignadas</CardTitle>
-
                             <CardDescription>Recursos utilizados en este servicio</CardDescription>
-
+                            <Label className="text-sm font-semibold">Equipos del Servicio:</Label>
                         </CardHeader>
-
                         <CardContent className="pt-6 space-y-4">
-
-                            {service.equipment.length > 0 && (
-
-                                <div className="space-y-2">
-
+                            {/* Equipos asignados al servicio */}
+                            {service.equipment && service.equipment.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
                                     {service.equipment.map((item, index) => (
-
                                         <div key={index}
-
                                              className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-
                                             <div className="flex items-center gap-2">
-
-                                                <div className="w-2 h-2 bg-green-500 rounded-full"/>
-
+                                                <div className="w-2 h-2 bg-green-400 rounded-full"/>
                                                 <span className="font-medium text-gray-900">{item}</span>
-
                                             </div>
-
                                             <Button variant="ghost" size="sm"
-
-                                                    onClick={() => handleRemoveEquipment(item, index)}>
-
+                                                    onClick={() => handleRemoveEquipment(item, index)}
+                                                    disabled={service.status === 'completed'}>
                                                 <X className="h-4 w-4 text-red-600"/>
-
                                             </Button>
-
                                         </div>
-
                                     ))}
-
                                 </div>
-
                             )}
-
                             <Separator/>
-
+                            {/* Agregar nuevos equipos */}
                             <div className="space-y-2">
-
                                 <Label>Agregar Equipo/Herramienta</Label>
-
                                 <div className="flex gap-2">
-
-                                    <Select value={newEquipment} onValueChange={setNewEquipment}>
-
+                                    <Select value={newEquipment} onValueChange={setNewEquipment} disabled={service.status === 'completed'}>
                                         <SelectTrigger className="flex-1">
-
                                             <SelectValue placeholder="Seleccionar del inventario..."/>
-
                                         </SelectTrigger>
-
                                         <SelectContent>
-
-                                            {availableEquipment.filter(e => e.available).map((item) => (
-
-                                                <SelectItem key={item.id} value={item.name}>
-
-                                                    {item.name}
-
-                                                </SelectItem>
-
-                                            ))}
-
+                                            {(availableEquipment || [])
+                                                .filter(e => e.status_utensilio === 'Disponible')
+                                                .map((item) => (
+                                                    <SelectItem key={item.id} value={String(item.id)}>
+                                                        {item.name}
+                                                    </SelectItem>
+                                                ))}
                                         </SelectContent>
-
                                     </Select>
-
-                                    <Button onClick={handleAddEquipment}>
-
+                                    <Button type="button" onClick={handleAddEquipment} disabled={service.status === 'completed'}>
                                         <Plus className="h-4 w-4 mr-1"/>Agregar
-
                                     </Button>
-
                                 </div>
 
                                 <p className="text-xs text-gray-500">O escriba manualmente:</p>
 
                                 <div className="flex gap-2">
-
                                     <Input
-
                                         placeholder="Nombre del equipo o herramienta"
-
                                         value={newEquipment}
-
+                                        disabled={service.status === 'completed'}
                                         onChange={(e) => setNewEquipment(e.target.value)}
-
-                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
-
-                                    />
-
-                                    <Button onClick={handleAddEquipment}>
-
+                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}/>
+                                    <Button type="button" onClick={handleAddEquipment} disabled={service.status === 'completed'}>
                                         <Plus className="h-4 w-4"/>
-
                                     </Button>
-
                                 </div>
-
                             </div>
-
                         </CardContent>
-
                     </Card>
 
                     {/* Evidence */}
@@ -483,7 +431,7 @@ export function ServiceDetailPage() {
                                                 size="icon"
                                                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                                                 onClick={() => setImageToDelete({ev, index})}
-                                            >
+                                                disabled={service.status === 'completed'}>
                                                 <Trash2 className="h-4 w-4"/>
                                             </Button>
                                         </div>
@@ -492,8 +440,7 @@ export function ServiceDetailPage() {
                             )}
                             <div className="space-y-2">
                                 <Label>Cargar Imagen</Label>
-                                <Select value={evidenciaTipo}
-                                        onValueChange={(v) => setEvidenciaTipo(v as 'inicio' | 'fin')}>
+                                <Select value={evidenciaTipo} onValueChange={(v) => setEvidenciaTipo(v as 'inicio' | 'fin')} disabled={service.status === 'completed'}>
                                     <SelectTrigger>
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -508,21 +455,20 @@ export function ServiceDetailPage() {
                                         type="file"
                                         accept="image/*"
                                         onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                                        className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-500 cursor-pointer file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"
-                                    />
+                                        disabled={service.status === 'completed'}
+                                        className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-500 cursor-pointer file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"/>
                                     {imageFile && (
                                         <Button
                                             variant="outline"
                                             size="icon"
                                             onClick={() => {
                                                 setImageFile(null);
-                                                if (fileInputRef.current) fileInputRef.current.value = '';
-                                            }}
-                                        >
+                                                if (fileInputRef.current) fileInputRef.current.value = '';}}
+                                            disabled={service.status === 'completed'}>
                                             <X className="h-4 w-4"/>
                                         </Button>
                                     )}
-                                    <Button onClick={handleUploadImage} className="bg-orange-600 hover:bg-orange-700">
+                                    <Button onClick={handleUploadImage} className="bg-orange-600 hover:bg-orange-700" disabled={service.status === 'completed'}>
                                         <Upload className="mr-2 h-4 w-4"/>Subir
                                     </Button>
                                 </div>
@@ -563,17 +509,16 @@ export function ServiceDetailPage() {
                                             placeholder="Notas que se guardarán en historial..."
                                             value={completionNotes}
                                             onChange={(e) => setCompletionNotes(e.target.value)}
+                                            disabled={service.status === 'completed'}
                                             rows={3}
-                                            className="resize-none"
-                                        />
+                                            className="resize-none"/>
                                     </div>
                                 )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="priority">Prioridad</Label>
                                 <Select value={priority}
-                                        onValueChange={(value) => setPriority(value as ServicePriority)}
-                                        disabled={service.status === 'completed'}>
+                                        onValueChange={(value) => setPriority(value as ServicePriority)} disabled={service.status === 'completed'}>
                                     <SelectTrigger id="priority">
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -666,9 +611,38 @@ export function ServiceDetailPage() {
                                 variant="destructive"
                                 onClick={async () => {
                                     await handleRemoveImage(imageToDelete.ev, imageToDelete.index);
-                                    setImageToDelete(null);
-                                }}
-                            >
+                                    setImageToDelete(null);}}>
+                                Eliminar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/*confirmación para eliminar herramienta */}
+            {toolToDelete && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900">¿Eliminar herramienta?</h3>
+                        <p className="text-sm text-gray-600">
+                            ¿Deseas eliminar "{toolToDelete.item}" del servicio?
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <Button variant="outline" onClick={() => setToolToDelete(null)}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={async () => {
+                                    try {
+                                        const updated = await serviceApi.removeUtensilio(service!.id, toolToDelete.id);
+                                        setService(updated);
+                                        const equiposActualizados = await serviceApi.getUtensilios(service.id);
+                                        setService(prev => prev ? {...prev, equipment: equiposActualizados.map(e => e.tipo_utensilio || e.nombre || e.name)} : null);
+                                        toast.success('Herramienta eliminada');
+                                        setToolToDelete(null);
+                                    } catch (error) {
+                                        toast.error('Error al eliminar herramienta');}
+                                }}>
                                 Eliminar
                             </Button>
                         </div>

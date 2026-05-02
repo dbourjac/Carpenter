@@ -154,16 +154,14 @@ export function ServicesListPage() {
                                             variant="outline"
                                             size="icon"
                                             onClick={() => navigate(`/services/${service.id}`)}
-                                            className="hover:bg-blue-50 hover:text-blue-600"
-                                        >
+                                            className="hover:bg-blue-50 hover:text-blue-600">
                                             <Eye className="h-4 w-4"/>
                                         </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                            onClick={() => setServiceToDelete(service.id)}
-                                        >
+                                            onClick={() => setServiceToDelete(service.id)}>
                                             <Trash2 className="h-4 w-4"/>
                                         </Button>
                                     </div>
