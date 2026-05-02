@@ -47,6 +47,7 @@ export interface EquipmentItem {
   id: string;
   name: string;
   type: 'equipment' | 'tool' | 'machinery';
+  status_utensilio?: 'En uso' | 'Disponible' | 'Mantenimiento';
   available: boolean;
   description?: string;
   nextMaintenanceDate?: string;

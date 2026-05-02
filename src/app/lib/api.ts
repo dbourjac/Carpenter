@@ -127,7 +127,8 @@ const normalizeEquipment = (row: any): EquipmentItem => {
         id: String(source?.id ?? source?.utensilio_id ?? source?.id_utensilio ?? ''),
         name: String(source?.name ?? source?.nombre ?? source?.tipo_utensilio ?? 'Sin nombre'),
         type: normalizeEquipmentType(source?.type ?? source?.tipo),
-        available: Boolean(source?.available ?? source?.disponible ?? source?.estado !== 'en_uso'),
+        status_utensilio: source?.status_utensilio ?? 'Disponible',
+        available: Boolean(source?.available ?? source?.disponible ?? source?.estado !== 'En_uso'),
         description: source?.description ?? source?.descripcion,
         nextMaintenanceDate: source?.nextMaintenanceDate ?? source?.proximo_mantenimiento ?? source?.fecha_mantenimiento,
         lastMaintenanceDate: source?.lastMaintenanceDate ?? source?.ultimo_mantenimiento,
@@ -437,14 +438,58 @@ export const serviceApi = {
     },
 
     // --- Utensilios dentro de un servicio ---
+/*
+    addUtensilio: async (id: string, datos: any) => {
+        const response = await api.post(`/api/servicios/${id}/utensilios`, {
+            utensilio_id: id,
+            nombre: datos.nombre || datos,
+            solicitante_id: datos.solicitante_id || null
+        });
+        return response.data;
+    },*/
+/*
+    addUtensilio: async (id: string, datos: any) => {
+        // Si datos es un objeto con nombre, busca el ID del utensilio
+        let utensilio_id = datos.nombre;
 
-    addUtensilio: async (id: string, nombre: string) => {
+        if (typeof datos === 'object' && datos.nombre) {
+            // Busca el utensilio por nombre para obtener su ID
+            const utensilios = await api.get('/api/utensilios');
+            const encontrado = (Array.isArray(utensilios.data) ? utensilios.data : utensilios.data?.utensilios || [])
+                .find(u => u.nombre === datos.nombre);
+
+            if (!encontrado) {
+                throw { status: 400, message: 'Utensilio no encontrado' };
+            }
+            utensilio_id = encontrado.id;
+        }
+        const response = await api.post(`/api/servicios/${id}/utensilios`, {
+            utensilio_id: utensilio_id,
+            solicitante_id: datos.solicitante_id || null
+        });
+        return response.data;
+    },*/
+
+    addUtensilio: async (id: string, datos: any) => {
+        const response = await api.post(`/api/servicios/${id}/utensilios`, {
+            utensilio_id: datos.utensilio_id,
+            solicitante_id: datos.solicitante_id || null
+        });
+        return response.data;
+    },
+
+    getUtensilios: async (id: string) => {
+        const response = await api.get(`/api/servicios/${id}/utensilios`);
+        return Array.isArray(response.data) ? response.data : response.data?.utensilios ?? [];
+    },
+
+   /* addUtensilio: async (id: string, nombre: string) => {
         const response = await api.post(`/api/servicios/${id}/utensilios`, {
             utensilio_id: id,
             nombre: nombre
         });
         return response.data;
-    },
+    },*/
 
     removeUtensilio: async (id: string, utensilio_id: string | number) => {
         const response = await api.delete(`/api/servicios/${id}/utensilios/${utensilio_id}`);
