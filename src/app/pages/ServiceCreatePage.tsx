@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useMemo} from 'react';
 import {useNavigate} from 'react-router';
 import {ArrowLeft, Plus, Save, X} from 'lucide-react';
 import {Button} from '../components/ui/button';
@@ -34,8 +34,9 @@ export function ServiceCreatePage() {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [technicians, setTechnicians] = useState<any[]>([]);
-    const [newEquipment, setNewEquipment] = useState('')
     const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
+    const [selectEquipment, setSelectEquipment] = useState('');
+    const [manualEquipment, setManualEquipment] = useState('');
 
     useEffect(() => {
         const loadEquipment = async () => {
@@ -63,7 +64,6 @@ export function ServiceCreatePage() {
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
-
         if (!formData.name.trim()) newErrors.name = 'El nombre del servicio es requerido';
         if (!formData.requesterName.trim()) newErrors.requesterName = 'El nombre del solicitante es requerido';
         if (!formData.requesterPhone.trim()) newErrors.requesterPhone = 'El teléfono es requerido';
@@ -83,29 +83,40 @@ export function ServiceCreatePage() {
         if (formData.startDate && formData.estimatedCompletionDate && formData.estimatedCompletionDate < formData.startDate) {
             newErrors.endDate = 'La fecha de finalización estimada debe ser posterior a la de inicio';
         }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
+    const filteredEquipment = useMemo(() => {
+        if (!manualEquipment.trim()) return [];
+        return availableEquipment.filter(e =>
+            e.status_utensilio === 'Disponible' &&
+            e.name.toLowerCase().includes(manualEquipment.toLowerCase()) &&
+            !formData.equipment.some(eq => eq.name === e.name)
+        );
+    }, [manualEquipment, availableEquipment, formData.equipment]);
+
     const handleAddEquipment = () => {
-        if (!newEquipment.trim()) {
+        const value = selectEquipment || manualEquipment;
+
+        if (!value.trim()) {
             toast.error('Seleccione o ingrese un equipo');
             return;
         }
-        // Valida que el equipo esté disponible
-        const equipo = availableEquipment.find(e => String(e.id) === newEquipment);
-        if (equipo && equipo.status_utensilio && equipo.status_utensilio !== 'Disponible') {
-            toast.error('Este equipo no está disponible');
-            return;
-        }
+
+        const equipo = availableEquipment.find(e => e.name === value);
+        const id = equipo?.id || value;
+        const nombre = equipo?.name || value;
+
         setFormData(prev => ({
             ...prev,
-            equipment: [...prev.equipment, newEquipment]
+            equipment: [...prev.equipment, {id: String(id), name: nombre}]
         }));
-        setNewEquipment('');
+        setSelectEquipment('');
+        setManualEquipment('');
     };
-    const handleRemoveEquipment = (item: string, index: number) => {
+
+    const handleRemoveEquipment = (id: string, index: number) => {
         setFormData(prev => ({
             ...prev,
             equipment: prev.equipment.filter((_, i) => i !== index)
@@ -118,7 +129,6 @@ export function ServiceCreatePage() {
             toast.error('Por favor, corrige los errores en el formulario');
             return;
         }
-
         try {
             // 1. Crear el solicitante
             const requester = await solicitanteApi.create({
@@ -127,7 +137,6 @@ export function ServiceCreatePage() {
                 phone: formData.requesterPhone,
                 area: formData.requesterArea,
             });
-
             // 2. Crear el servicio
             const newService = await serviceApi.create({
                 name: formData.name,
@@ -143,13 +152,12 @@ export function ServiceCreatePage() {
                 description: formData.description || undefined,
                 observations: formData.observations || undefined,
             });
-
             // 3. Agregar utensilios
             if (formData.equipment && formData.equipment.length > 0) {
-                for (const equipmentId of formData.equipment) {
+                for (const equipo of formData.equipment) {
                     try {
                         await serviceApi.addUtensilio(newService.id, {
-                            utensilio_id: parseInt(equipmentId),
+                            utensilio_id: parseInt(equipo.id),
                             solicitante_id: requester.id
                         });
                     } catch (error) {
@@ -157,11 +165,9 @@ export function ServiceCreatePage() {
                     }
                 }
             }
-
             toast.success('Servicio creado exitosamente');
             setTimeout(() => window.location.reload());
             navigate(`/services/${newService.id}`);
-
         } catch
             (error: any) {
             console.error('Error al crear servicio:', error.response?.data || error.message);
@@ -184,8 +190,7 @@ export function ServiceCreatePage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => navigate('/services')}
-                    className="hover:bg-blue-50"
-                >
+                    className="hover:bg-blue-50">
                     <ArrowLeft className="h-5 w-5"/>
                 </Button>
                 <div>
@@ -417,66 +422,86 @@ export function ServiceCreatePage() {
                         <CardDescription>Recursos utilizados en este servicio</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-4">
+                        {/* Lista de equipos */}
                         {formData.equipment.length > 0 && (
                             <div className="space-y-2">
-                                {formData.equipment.length > 0 && (
-                                    <div className="space-y-2">
-                                        {formData.equipment.map((equipmentId, index) => {
-                                            const equipo = availableEquipment.find(e => String(e.id) === equipmentId);
-                                            return (
-                                                <div key={index}
-                                                     className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 bg-green-500 rounded-full"/>
-                                                        <span
-                                                            className="font-medium text-gray-900">{equipo?.name || equipmentId}</span>
-                                                    </div>
-                                                    <Button variant="ghost" size="sm"
-                                                            onClick={() => handleRemoveEquipment(equipmentId, index)}>
-                                                        <X className="h-4 w-4 text-red-600"/>
-                                                    </Button>
-                                                </div>);
-                                        })}
-                                    </div>)}
-                            </div>)}
+                                {formData.equipment.map((equipo, index) => (
+                                    <div key={index}
+                                         className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full"/>
+                                            <span className="font-medium text-gray-900">{equipo.name}</span>
+                                        </div>
+                                        <Button variant="ghost" size="sm"
+                                                onClick={() => handleRemoveEquipment(equipo.id, index)}>
+                                            <X className="h-4 w-4 text-red-600"/>
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         <Separator/>
+                        {/* agregar equipo con Select */}
                         <div className="space-y-2">
-                            <Label>Agregar Equipo/Herramienta</Label>
+                            <Label>Seleccionar del Inventario</Label>
                             <div className="flex gap-2">
-                                <Select value={newEquipment} onValueChange={setNewEquipment}>
+                                <Select value={selectEquipment} onValueChange={setSelectEquipment}>
                                     <SelectTrigger className="flex-1">
-                                        <SelectValue placeholder="Seleccionar del inventario..."/>
+                                        <SelectValue placeholder="Seleccionar..."/>
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {(availableEquipment || [])
+                                        {availableEquipment
                                             .filter(e => e.status_utensilio === 'Disponible')
+                                            .filter(e => !formData.equipment.some(eq => eq.name === e.name))
                                             .map((item) => (
-                                                <SelectItem key={item.id} value={String(item.id)}>
+                                                <SelectItem key={item.id} value={item.name}>
                                                     {item.name}
                                                 </SelectItem>
-                                            ))}
+                                            ))
+                                        }
                                     </SelectContent>
                                 </Select>
                                 <Button type="button" onClick={handleAddEquipment}>
                                     <Plus className="h-4 w-4 mr-1"/>Agregar
                                 </Button>
                             </div>
-                            <p className="text-xs text-gray-500">O escriba manualmente:</p>
-                            <div className="flex gap-2">
-                                <Input
-                                    placeholder="Nombre del equipo o herramienta"
-                                    value={newEquipment}
-                                    onChange={(e) => setNewEquipment(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
-                                />
-                                <Button type="button" onClick={handleAddEquipment}>
-                                    <Plus className="h-4 w-4"/>
-                                </Button>
+                        </div>
+                        <Separator/>
+                        {/* agregar equipo con Input Manual */}
+                        <div className="space-y-2">
+                            <Label>O escriba manualmente</Label>
+                            <div className="relative">
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Nombre del equipo..."
+                                        value={manualEquipment}
+                                        onChange={(e) => setManualEquipment(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
+                                        className="flex-1"
+                                    />
+
+                                    <Button type="button" onClick={handleAddEquipment}>
+                                        <Plus className="h-4 w-4"/>
+                                    </Button>
+                                </div>
+
+                                {/* Sugerencias */}
+                                {filteredEquipment.length > 0 && manualEquipment.trim() && (
+                                    <div
+                                        className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                        {filteredEquipment.slice(0, 5).map((equipo) => (
+                                            <div key={equipo.id}
+                                                 className="p-2 hover:bg-blue-50 cursor-pointer text-sm border-b last:border-b-0"
+                                                 onClick={() => setManualEquipment(equipo.name)}>
+                                                {equipo.name}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </CardContent>
                 </Card>
-
                 {/* Acciones */}
                 <div className="flex gap-3">
                     <Button

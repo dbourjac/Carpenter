@@ -75,7 +75,7 @@ export function DashboardPage() {
                 date.getFullYear() === now.getFullYear()
             );
         }).length;
-        const highPriority = services.filter(s => s.priority === 'high').length;
+        const highPriority = services.filter(s => s.priority === 'high' && s.status !== 'completed').length;
 
         const byType = [
             {name: 'Preventivo', value: services.filter(s => s.type === 'preventive').length, fill: '#3b82f6'},
@@ -228,56 +228,53 @@ export function DashboardPage() {
                         {services.length === 0 ? (
                             <div className="text-center py-10 text-gray-500">
                                 No hay servicios registrados
-                            </div>
-                        ) : (
-                            sortServices(services).slice(0, 5).map((service) => (
-                                <Link
-                                    key={service.id}
-                                    to={`/services/${service.id}`}
-                                    className={`block w-full p-4 border-2 rounded-xl bg-white transition-all duration-200 cursor-pointer 
-                  hover:bg-gray-300 hover:shadow-xl hover:-translate-y-[2px] ${
-                                        service.priority === 'high'
-                                            ? 'border-red-400 shadow-md'
-                                            : 'border-gray-100'
-                                    }`}>
-                                    <div className="flex items-center justify-between gap-4 w-full h-full">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap mb-2 leading-none">
-                                                <div className="flex items-center gap-2">
-                                                    {service.priority === 'high' && (
-                                                        <span className="text-red-500 text-sm">●</span>
-                                                    )}
-                                                    <span className="font-semibold text-gray-900 truncate">
+                            </div>) : (sortServices(services).filter(s => s.status !== 'completed').slice(0, 5).map((service) =>
+                                (<Link key={service.id}
+                                       to={`/services/${service.id}`}
+                                       className={`block w-full p-4 border-2 rounded-xl bg-white transition-all duration-200 cursor-pointer 
+                                       hover:bg-gray-300 hover:shadow-xl hover:-translate-y-[2px] ${
+                                           service.priority === 'high'
+                                               ? 'border-red-400 shadow-md'
+                                               : 'border-gray-100'
+                                       }`}>
+                                        <div className="flex items-center justify-between gap-4 w-full h-full">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap mb-2 leading-none">
+                                                    <div className="flex items-center gap-2">
+                                                        {service.priority === 'high' && (
+                                                            <span className="text-red-500 text-sm">●</span>
+                                                        )}
+                                                        <span className="font-semibold text-gray-900 truncate">
                                                     {service.name}
                                                      </span>
+                                                    </div>
+                                                    <Badge className={`${
+                                                        service.status === 'completed'
+                                                            ? 'bg-green-100 text-green-800 border-green-200'
+                                                            : service.status === 'in-progress'
+                                                                ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                                                : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                                    } border`}>
+                                                        {getStatusLabel(service.status)}
+                                                    </Badge>
+                                                    <Badge
+                                                        className={`${getPriorityColor(service.priority)} border ${
+                                                            service.priority === 'high' ? 'animate-pulse' : ''
+                                                        }`}>
+                                                        {getPriorityLabel(service.priority)}
+                                                    </Badge>
                                                 </div>
-                                                <Badge className={`${
-                                                    service.status === 'completed'
-                                                        ? 'bg-green-100 text-green-800 border-green-200'
-                                                        : service.status === 'in-progress'
-                                                            ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                                                } border`}>
-                                                    {getStatusLabel(service.status)}
-                                                </Badge>
-                                                <Badge
-                                                    className={`${getPriorityColor(service.priority)} border ${
-                                                        service.priority === 'high' ? 'animate-pulse' : ''
-                                                    }`}>
-                                                    {getPriorityLabel(service.priority)}
-                                                </Badge>
+                                                <p className="text-sm text-gray-600">
+                                                    {service.requesterName} • {service.requesterArea}
+                                                    {service.assignedTechnician && ` • Técnico: ${getTechnicianName(service.assignedTechnician)}`}
+                                                </p>
                                             </div>
-                                            <p className="text-sm text-gray-600">
-                                                {service.requesterName} • {service.requesterArea}
-                                                {service.assignedTechnician && ` • Técnico: ${getTechnicianName(service.assignedTechnician)}`}
-                                            </p>
+                                            <div className="text-sm text-gray-500 text-right shrink-0">
+                                                {formatRelativeDate(service.startDate)}
+                                            </div>
                                         </div>
-                                        <div className="text-sm text-gray-500 text-right shrink-0">
-                                            {formatRelativeDate(service.startDate)}
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))
+                                    </Link>
+                                ))
                         )}
                     </div>
                 </CardContent>

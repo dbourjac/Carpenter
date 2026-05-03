@@ -1,6 +1,18 @@
-import {useState, useEffect, useRef} from 'react';
+import {useState, useEffect, useRef, useMemo} from 'react';
 import {useParams, useNavigate} from 'react-router';
-import {ArrowLeft, Save, Plus, X, Upload, Trash2, MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle2} from 'lucide-react';
+import {
+    ArrowLeft,
+    Save,
+    Plus,
+    X,
+    Upload,
+    Trash2,
+    MapPin,
+    Calendar,
+    User as UserIcon,
+    AlertCircle,
+    CheckCircle2
+} from 'lucide-react';
 import {Button} from '../components/ui/button';
 import {Input} from '../components/ui/input';
 import {Label} from '../components/ui/label';
@@ -10,7 +22,14 @@ import {Badge} from '../components/ui/badge';
 import {Separator} from '../components/ui/separator';
 import {Textarea} from '../components/ui/textarea';
 import {seguimientoApi, serviceApi, technicianApi, utensiliosApi} from '../lib/api';
-import {getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate} from '../lib/utils';
+import {
+    getStatusLabel,
+    getTypeLabel,
+    getPriorityLabel,
+    getStatusColor,
+    getPriorityColor,
+    formatDate
+} from '../lib/utils';
 import {ServiceStatus, ServicePriority, ServiceRequest, EquipmentItem} from '../lib/types';
 import {toast} from 'sonner';
 
@@ -35,6 +54,14 @@ export function ServiceDetailPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
     const [toolToDelete, setToolToDelete] = useState<{ item: string; index: number; id?: string } | null>(null);
+
+    const filteredEquipment = useMemo(() => {
+        if (!newEquipment.trim()) return [];
+        return availableEquipment.filter(e =>
+            e.status_utensilio === 'Disponible' &&
+            e.name.toLowerCase().includes(newEquipment.toLowerCase())
+        );
+    }, [newEquipment, availableEquipment]);
 
     useEffect(() => {
         const loadTechnicians = async () => {
@@ -68,7 +95,10 @@ export function ServiceDetailPage() {
                 const data = await serviceApi.getUtensilios(id!);
                 //console.log('[equipos del servicio cargados]', data);
                 if (service && data.length > 0) {
-                    setService(prev => prev ? {...prev, equipment: data.map(e => e.tipo_utensilio || e.nombre || e.name)} : null);
+                    setService(prev => prev ? {
+                        ...prev,
+                        equipment: data.map(e => e.tipo_utensilio || e.nombre || e.name)
+                    } : null);
                 }
             } catch (error) {
                 console.error('Error cargando equipos del servicio');
@@ -136,10 +166,6 @@ export function ServiceDetailPage() {
 
             if (status === 'completed' && service.status !== 'completed') {
                 // Completar servicio
-                console.log('[completar payload]', {
-                    fecha_fin: new Date().toISOString().split('T')[0],
-                    notas: completionNotes,
-                });
                 updated = await serviceApi.completar(service.id, {
                     fecha_fin: new Date().toISOString().split('T')[0],
                     notas: completionNotes,
@@ -164,15 +190,17 @@ export function ServiceDetailPage() {
                     assignedTechnician: assignedTechnician || undefined,
                     location: location || undefined,
                     estimatedCompletionDate: estimatedCompletion || undefined,
-                });}
+                });
+            }
             setService(updated);
             toast.success('Información actualizada correctamente');
-            setTimeout(() => window.location.reload());
+            setTimeout(() => window.location.reload(), 500);
         } catch (error: any) {
             const mensaje = error.response?.data?.message || 'Error al actualizar';
             toast.error(mensaje);
         }
     };
+
     const handleUpdateObservations = async () => {
         if (!seguimientoId) {
             toast.error('No se encontró el registro de seguimiento');
@@ -191,15 +219,34 @@ export function ServiceDetailPage() {
             toast.error('Seleccione o ingrese un equipo');
             return;
         }
+
         try {
+            // Busca el equipo por nombre para obtener su ID
+            const equipo = availableEquipment.find(e => e.name === newEquipment);
+
+            if (!equipo) {
+                toast.error('Equipo no encontrado');
+                return;
+            }
+
             const updated = await serviceApi.addUtensilio(service.id, {
-                utensilio_id: parseInt(newEquipment),
+                utensilio_id: equipo.id,
                 solicitante_id: service.solicitanteId
             });
-            setService(updated);
+
+            // Recarga equipos del servicio
+            const equipos = await serviceApi.getUtensilios(service.id);
+            setService(prev => prev ? {
+                ...prev,
+                equipment: equipos.map(e => e.tipo_utensilio || e.nombre || e.name)
+            } : null);
+
+            // Recarga equipos disponibles
+            const disponibles = await utensiliosApi.getAll();
+            setAvailableEquipment(Array.isArray(disponibles) ? disponibles : []);
+
             setNewEquipment('');
             toast.success('Equipo agregado');
-            setTimeout(() => window.location.reload());
         } catch (error: any) {
             console.error('[addUtensilio error]', error);
             toast.error(error.response?.data?.message || 'Error al agregar equipo');
@@ -208,8 +255,7 @@ export function ServiceDetailPage() {
 
     const handleRemoveEquipment = async (item: string, index: number) => {
         const equipo = availableEquipment.find(e => e.name === item);
-        setToolToDelete({ item, index, id: equipo?.id });
-        setTimeout(() => window.location.reload());
+        setToolToDelete({item, index, id: equipo?.id});
     };
 
     const handleUploadImage = async () => {
@@ -374,7 +420,8 @@ export function ServiceDetailPage() {
                             <div className="space-y-2">
                                 <Label>Agregar Equipo/Herramienta</Label>
                                 <div className="flex gap-2">
-                                    <Select value={newEquipment} onValueChange={setNewEquipment} disabled={service.status === 'completed'}>
+                                    <Select value={newEquipment} onValueChange={setNewEquipment}
+                                            disabled={service.status === 'completed'}>
                                         <SelectTrigger className="flex-1">
                                             <SelectValue placeholder="Seleccionar del inventario..."/>
                                         </SelectTrigger>
@@ -388,23 +435,42 @@ export function ServiceDetailPage() {
                                                 ))}
                                         </SelectContent>
                                     </Select>
-                                    <Button type="button" onClick={handleAddEquipment} disabled={service.status === 'completed'}>
+                                    <Button type="button" onClick={handleAddEquipment}
+                                            disabled={service.status === 'completed'}>
                                         <Plus className="h-4 w-4 mr-1"/>Agregar
                                     </Button>
                                 </div>
+                                <div className="space-y-2">
+                                    <p className="text-xs text-gray-500">O escriba manualmente:</p>
+                                    <div className="relative flex gap-2">
+                                        <Input
+                                            placeholder="Nombre del equipo o herramienta"
+                                            value={newEquipment}
+                                            onChange={(e) => setNewEquipment(e.target.value)}
+                                            disabled={service.status === 'completed'}
+                                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
+                                            className="flex-1"
+                                        />
 
-                                <p className="text-xs text-gray-500">O escriba manualmente:</p>
+                                        {/* Sugerencias mientras escribe */}
+                                        {filteredEquipment.length > 0 && newEquipment.trim() && (
+                                            <div
+                                                className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                                {filteredEquipment.slice(0, 5).map((equipo) => (
+                                                    <div key={equipo.id}
+                                                         className="p-2 hover:bg-blue-50 cursor-pointer text-sm"
+                                                         onClick={() => setNewEquipment(equipo.name)}>
+                                                        {equipo.name}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="Nombre del equipo o herramienta"
-                                        value={newEquipment}
-                                        disabled={service.status === 'completed'}
-                                        onChange={(e) => setNewEquipment(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}/>
-                                    <Button type="button" onClick={handleAddEquipment} disabled={service.status === 'completed'}>
-                                        <Plus className="h-4 w-4"/>
-                                    </Button>
+                                        <Button type="button" onClick={handleAddEquipment}
+                                                disabled={service.status === 'completed'}>
+                                            <Plus className="h-4 w-4"/>
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -440,7 +506,9 @@ export function ServiceDetailPage() {
                             )}
                             <div className="space-y-2">
                                 <Label>Cargar Imagen</Label>
-                                <Select value={evidenciaTipo} onValueChange={(v) => setEvidenciaTipo(v as 'inicio' | 'fin')} disabled={service.status === 'completed'}>
+                                <Select value={evidenciaTipo}
+                                        onValueChange={(v) => setEvidenciaTipo(v as 'inicio' | 'fin')}
+                                        disabled={service.status === 'completed'}>
                                     <SelectTrigger>
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -450,25 +518,24 @@ export function ServiceDetailPage() {
                                     </SelectContent>
                                 </Select>
                                 <div className="flex gap-2">
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                                        disabled={service.status === 'completed'}
-                                        className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-500 cursor-pointer file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"/>
+                                    <input ref={fileInputRef} type="file" accept="image/*"
+                                           onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                                           disabled={service.status === 'completed'}
+                                           className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-500 cursor-pointer file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"/>
                                     {imageFile && (
                                         <Button
                                             variant="outline"
                                             size="icon"
                                             onClick={() => {
                                                 setImageFile(null);
-                                                if (fileInputRef.current) fileInputRef.current.value = '';}}
+                                                if (fileInputRef.current) fileInputRef.current.value = '';
+                                            }}
                                             disabled={service.status === 'completed'}>
                                             <X className="h-4 w-4"/>
                                         </Button>
                                     )}
-                                    <Button onClick={handleUploadImage} className="bg-orange-600 hover:bg-orange-700" disabled={service.status === 'completed'}>
+                                    <Button onClick={handleUploadImage} className="bg-orange-600 hover:bg-orange-700"
+                                            disabled={service.status === 'completed'}>
                                         <Upload className="mr-2 h-4 w-4"/>Subir
                                     </Button>
                                 </div>
@@ -518,7 +585,8 @@ export function ServiceDetailPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="priority">Prioridad</Label>
                                 <Select value={priority}
-                                        onValueChange={(value) => setPriority(value as ServicePriority)} disabled={service.status === 'completed'}>
+                                        onValueChange={(value) => setPriority(value as ServicePriority)}
+                                        disabled={service.status === 'completed'}>
                                     <SelectTrigger id="priority">
                                         <SelectValue/>
                                     </SelectTrigger>
@@ -611,7 +679,8 @@ export function ServiceDetailPage() {
                                 variant="destructive"
                                 onClick={async () => {
                                     await handleRemoveImage(imageToDelete.ev, imageToDelete.index);
-                                    setImageToDelete(null);}}>
+                                    setImageToDelete(null);
+                                }}>
                                 Eliminar
                             </Button>
                         </div>
@@ -634,14 +703,20 @@ export function ServiceDetailPage() {
                                 variant="destructive"
                                 onClick={async () => {
                                     try {
-                                        const updated = await serviceApi.removeUtensilio(service!.id, toolToDelete.id);
-                                        setService(updated);
+                                        await serviceApi.removeUtensilio(service!.id, toolToDelete.id);
                                         const equiposActualizados = await serviceApi.getUtensilios(service.id);
-                                        setService(prev => prev ? {...prev, equipment: equiposActualizados.map(e => e.tipo_utensilio || e.nombre || e.name)} : null);
+                                        setService(prev => prev ? {
+                                            ...prev,
+                                            equipment: equiposActualizados.map(e => e.tipo_utensilio || e.nombre || e.name)
+                                        } : null);
                                         toast.success('Herramienta eliminada');
                                         setToolToDelete(null);
+
+                                        // Recarga DESPUÉS de eliminar
+                                        //setTimeout(() => window.location.reload(), 500);
                                     } catch (error) {
-                                        toast.error('Error al eliminar herramienta');}
+                                        toast.error('Error al eliminar herramienta');
+                                    }
                                 }}>
                                 Eliminar
                             </Button>
