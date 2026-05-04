@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { 
   ClipboardList, 
@@ -14,12 +14,47 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { getServices } from '../lib/storage';
+import { serviceApi, getPersonal } from '../lib/api';
+import { ServiceRequest } from '../lib/types';
 import { getStatusLabel, getPriorityLabel, getPriorityColor, formatRelativeDate, sortServices } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { useLocation } from 'react-router';
 
 export function DashboardPage() {
-  const services = getServices();
+  const [services, setServices] = useState<ServiceRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const [error, setError] = useState<string | null>(null);
+  const [technicians, setTechnicians] = useState<{ id: string; nombre?: string; name?: string }[]>([]);
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+
+          const [servicesData, techniciansData] = await Promise.all([
+            serviceApi.getAll(),
+            getPersonal(),
+          ]);
+
+          setServices(servicesData);
+          setTechnicians(techniciansData);
+
+        } catch (err: any) {
+          console.error(err);
+          setError(err?.message || 'Error al cargar datos');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchData();
+    }, [location.key]);
+
+  const getTechnicianName = (id: string) => {
+    const tech = technicians.find(t => String(t.id) === String(id));
+    return tech?.nombre ?? tech?.name ?? 'Sin asignar';
+  };
 
   const stats = useMemo(() => {
     const pending = services.filter(s => s.status === 'pending').length;
@@ -51,6 +86,27 @@ export function DashboardPage() {
     { name: 'Completado', value: stats.completedThisMonth, color: '#10b981' },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 gap-3 text-gray-500">
+        <Clock className="h-6 w-6 animate-spin" />
+        <span>Cargando servicios...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-red-500">
+        <AlertTriangle className="h-8 w-8" />
+        <span className="font-medium">{error}</span>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+ 
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -225,7 +281,7 @@ export function DashboardPage() {
                         {/* INFO */}
                         <p className="text-sm text-gray-600">
                           {service.requesterName} • {service.requesterArea}
-                          {service.assignedTechnician && ` • Técnico: ${service.assignedTechnician}`}
+                          {service.assignedTechnician && ` • Técnico: ${getTechnicianName(service.assignedTechnician)}`}
                         </p>
                       </div>
 

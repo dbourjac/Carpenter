@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Plus, X } from 'lucide-react';
+import { Separator } from '../components/ui/separator';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { createService, getTechnicians } from '../lib/storage';
 import { getTodayDateString, isDateBeforeToday } from '../lib/utils';
 import { ServiceType, ServicePriority } from '../lib/types';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
+import { serviceApi, solicitanteApi, getPersonal, seguimientoApi, utensiliosApi } from '../lib/api';
 
 export function ServiceCreatePage() {
   const navigate = useNavigate();
-  const technicians = getTechnicians();
   const [formData, setFormData] = useState({
     name: '',
     type: 'corrective' as ServiceType,
@@ -30,10 +31,38 @@ export function ServiceCreatePage() {
     location: '',
     description: '',
     observations: '',
+    equipment: [] as number[],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [technicians, setTechnicians] = useState<any[]>([]);
+    useEffect(() => {
+      const load = async () => {
+        try {
+          const data = await getPersonal();
+          setTechnicians(data);
+        } catch (error) {
+          console.error('Error cargando técnicos', error);
+          setTechnicians([]);
+        }
+      };
+      load();
+    }, []);
+    useEffect(() => {
+      const loadEquipment = async () => {
+        try {
+          const data = await utensiliosApi.getAll();
+          setAvailableEquipment(Array.isArray(data) ? data : []);
+        } catch (error) {
+          console.error('Error cargando equipos');
+          setAvailableEquipment([]);
+        }
+      };
+      loadEquipment();
+    }, []);
 
+  const [newEquipment, setNewEquipment] = useState('');
+  const [availableEquipment, setAvailableEquipment] = useState<{ id: string; name: string; available: boolean }[]>([]);
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -47,7 +76,7 @@ export function ServiceCreatePage() {
     }
     if (!formData.requesterArea.trim()) newErrors.requesterArea = 'El área es requerida';
     if (!formData.startDate) newErrors.startDate = 'La fecha de inicio es requerida';
-    if (!formData.assignedTechnician.trim()) {
+    if (!formData.assignedTechnician?.trim()) {
       newErrors.assignedTechnician = 'El técnico asignado es requerido';
     }
     if (!formData.endDate) newErrors.endDate = 'La fecha de fin es requerida';
@@ -61,38 +90,113 @@ export function ServiceCreatePage() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+    const handleAddEquipment = () => {
+        if (!newEquipment.trim()) {
+          toast.error('Seleccione o ingrese un equipo');
+          return;
+        }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      toast.error('Por favor, corrige los errores en el formulario');
-      return;
-    }
+        const equipo = availableEquipment.find(e => String(e.id) === newEquipment);
 
-    const newService = createService({
-      name: formData.name,
-      type: formData.type,
-      priority: formData.priority,
-      status: 'pending',
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      estimatedCompletionDate: formData.estimatedCompletionDate || undefined,
-      requesterName: formData.requesterName,
-      requesterPhone: formData.requesterPhone,
-      requesterEmail: formData.requesterEmail,
-      requesterArea: formData.requesterArea,
-      assignedTechnician: formData.assignedTechnician || undefined,
-      location: formData.location || undefined,
-      description: formData.description || undefined,
-      observations: formData.observations,
-      equipment: [],
-      evidenceImages: [],
-    });
+        if (equipo && !equipo.available) {
+          toast.error('Este equipo no está disponible');
+          return;
+        }
 
-    toast.success('Servicio creado exitosamente');
-    navigate(`/services/${newService.id}`);
-  };
+        setFormData(prev => ({
+          ...prev,
+          equipment: [...prev.equipment, Number(newEquipment)]
+        }));
+
+        setNewEquipment('');
+      };
+
+    const handleRemoveEquipment = (_: string, index: number) => {
+        setFormData(prev => ({
+          ...prev,
+          equipment: prev.equipment.filter((_, i) => i !== index)
+        }));
+      };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!validateForm()) {
+        toast.error('Por favor, corrige los errores en el formulario');
+        return;
+      }
+      
+
+      try {
+        // 1. Crear solicitante
+        const requester = await solicitanteApi.create({
+          name: formData.requesterName,
+          email: formData.requesterEmail,
+          phone: formData.requesterPhone,
+          area: formData.requesterArea,
+        });
+
+        // 2. Crear servicio
+        const newService = await serviceApi.create({
+          name: formData.name,
+          type: formData.type,
+          priority: formData.priority,
+          status: 'pending',
+
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          estimatedCompletionDate: formData.estimatedCompletionDate || null,
+
+          solicitanteId: requester.id,
+          assignedTechnician: formData.assignedTechnician || null,
+          location: formData.location || null,
+
+          description: formData.description || null,
+          observations: formData.observations || null,
+        });
+
+        if (formData.equipment && formData.equipment.length > 0) {
+          for (const equipmentId of formData.equipment) {
+            if (!equipmentId) continue;
+            try {
+              const equipo = availableEquipment.find(e => Number(e.id) === equipmentId);
+              await serviceApi.addUtensilio(newService.id, {
+                utensilio_id: Number(equipmentId)
+              });
+            } catch (error) {
+              console.error('Error agregando utensilio:', error);
+            }
+          }
+        }
+        
+        try {
+          await seguimientoApi.add(newService.id, {
+            name: formData.name || 'S/N',
+            solicitanteId: requester?.id ?? null,
+            assignedTechnician: formData.assignedTechnician
+              ? String(formData.assignedTechnician)
+              : null,
+            location: formData.location ?? null,
+            description: formData.description ?? null,
+            type: formData.type ?? 'other',
+            startDate: formData.startDate ?? null,
+            estimatedCompletionDate:
+              formData.estimatedCompletionDate || null,
+            observations: formData.observations ?? null,
+          });
+        } catch (err) {
+          console.error('Error creando seguimiento:', err);
+        }
+
+        toast.success('Servicio creado exitosamente');
+
+        navigate(`/services/${newService.id}`);
+
+      } catch (error: any) {
+        console.error('ERROR BACK REAL:', error.response?.data || error.message);
+        toast.error('Error al crear servicio');
+      }
+    };
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -329,8 +433,8 @@ export function ServiceCreatePage() {
 
                 <SelectContent>
                   {technicians.map((tech) => (
-                    <SelectItem key={tech.id} value={tech.nombre}>
-                      {tech.nombre} — {tech.especialidad}
+                    <SelectItem key={tech.id} value={String(tech.id)}>
+                      {tech.nombre || tech.name} — {tech.especialidad || 'Sin especialidad'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -349,6 +453,56 @@ export function ServiceCreatePage() {
                 onChange={(e) => updateField('observations', e.target.value)}
                 rows={3}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-green-50/50 border-b">
+            <CardTitle>Equipos y Herramientas Asignadas</CardTitle>
+            <CardDescription>Recursos utilizados en este servicio</CardDescription>
+          </CardHeader>
+
+          <CardContent className="pt-6 space-y-4">
+
+            {formData.equipment.length > 0 && (
+              <div className="space-y-2">
+                {formData.equipment.map((equipmentId, index) => {
+                  const equipo = availableEquipment.find(e => String(e.id) === String(equipmentId));
+
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <span>{equipo?.name || equipmentId}</span>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveEquipment(equipmentId, index)}>
+                        <X className="h-4 w-4 text-red-600"/>
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <Separator />
+
+            <div className="flex gap-2">
+              <Select value={newEquipment} onValueChange={setNewEquipment}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Seleccionar del inventario..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(availableEquipment || [])
+                    .filter(e => e.available)
+                    .map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+
+              <Button type="button" onClick={handleAddEquipment}>
+                <Plus className="h-4 w-4 mr-1"/>Agregar
+              </Button>
             </div>
           </CardContent>
         </Card>

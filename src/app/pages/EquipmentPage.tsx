@@ -9,12 +9,7 @@ import { Badge } from '../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Textarea } from '../components/ui/textarea';
-import { 
-  getEquipment, 
-  createEquipmentItem, 
-  updateEquipmentItem, 
-  deleteEquipmentItem 
-} from '../lib/storage';
+import { utensiliosApi, getPersonal, serviceApi } from '../lib/api';
 import { EquipmentItem } from '../lib/types';
 import { toast } from 'sonner';
 
@@ -51,55 +46,88 @@ const toStartOfDay = (date: Date): Date => {
   return copy;
 };
 
-const getMaintenanceState = (item: EquipmentItem): 'none' | 'completed' | 'overdue' | 'scheduled' => {
-  if (!item.nextMaintenanceDate) return 'none';
-  if (item.maintenanceCompleted) return 'completed';
-
-  const targetDay = toStartOfDay(parseMaintenanceDate(item.nextMaintenanceDate));
-  const today = toStartOfDay(new Date());
-  return targetDay.getTime() < today.getTime() ? 'overdue' : 'scheduled';
-};
 const isUnderMaintenance = (item: EquipmentItem) => {
-  if (!item.nextMaintenanceDate) return false;
-  if (item.maintenanceCompleted) return false;
-
-  const now = new Date();
-  const maintenanceDate = parseMaintenanceDate(item.nextMaintenanceDate);
-
-  return now >= maintenanceDate;
+  return item.status_mantenimiento === 'En proceso';
 };
 
 export function EquipmentPage() {
-  const [equipment, setEquipment] = useState(getEquipment());
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(true);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [maintenanceItem, setMaintenanceItem] = useState<EquipmentItem | null>(null);
+  const [detailsItem, setDetailsItem] = useState<EquipmentItem | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [maintenanceHistory, setMaintenanceHistory] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
     type: 'equipment' as 'equipment' | 'tool' | 'machinery',
     available: true,
-    description: '',
   });
 
   const [maintenanceData, setMaintenanceData] = useState({
     nextMaintenanceDate: '',
     maintenanceNotes: '',
+    personal_id: ''
   });
+
+  const loadEquipment = async () => {
+    setLoadingEquipment(true);
+    try {
+      const rows = await utensiliosApi.getAll();
+      setEquipment(rows);
+      checkMaintenanceNotifications(rows);
+    } catch (err) {
+      console.error('Error loading utensilios:', err);
+      toast.error('No se pudieron cargar equipos y utensilios');
+    } finally {
+      setLoadingEquipment(false);
+    }
+  };
+
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  useEffect(() => {
+    const loadTechs = async () => {
+      try {
+        const data = await getPersonal();
+        setTechnicians(data);
+      } catch {
+        console.error('Error cargando técnicos');
+      }
+    };
+    loadTechs();
+  }, []);
 
   // Check maintenance notifications on component mount
   useEffect(() => {
-    checkMaintenanceNotifications();
+    const init = async () => {
+      await loadEquipment();
+
+      const updatedServices = await serviceApi.getAll();
+      setServices(updatedServices);
+    };
+
+    init();
   }, []);
+
+  const loadServices = async () => {
+    try {
+      const data = await serviceApi.getAll();
+      setServices(data);
+    } catch {
+      console.error('Error cargando servicios');
+    }
+  };
 
   const resetForm = () => {
     setFormData({
       name: '',
       type: 'equipment',
       available: true,
-      description: '',
     });
     setEditingItem(null);
   };
@@ -111,7 +139,6 @@ export function EquipmentPage() {
         name: item.name,
         type: item.type,
         available: item.available,
-        description: item.description || '',
       });
     } else {
       resetForm();
@@ -119,7 +146,7 @@ export function EquipmentPage() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -131,38 +158,76 @@ export function EquipmentPage() {
       name: formData.name,
       type: formData.type,
       available: formData.available,
-      description: formData.description || undefined,
     };
 
-    if (editingItem) {
-      const updated = updateEquipmentItem(editingItem.id, itemData);
-      if (updated) {
-        setEquipment(getEquipment());
+    try {
+      if (editingItem) {
+        await utensiliosApi.update(editingItem.id, {
+          ...editingItem,
+          name: formData.name,
+          type: formData.type,
+          available: formData.available,
+        });
         toast.success('Item actualizado correctamente');
+      } else {
+        await utensiliosApi.create(itemData);
+        toast.success('Item agregado correctamente');
       }
-    } else {
-      createEquipmentItem(itemData);
-      setEquipment(getEquipment());
-      toast.success('Item agregado correctamente');
+
+      await loadEquipment();
+    } catch (err) {
+      console.error('Error saving utensilio:', err);
+      toast.error('No se pudo guardar el item');
+      return;
     }
 
     setIsDialogOpen(false);
     resetForm();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('¿Está seguro de eliminar este item?')) {
-      deleteEquipmentItem(id);
-      setEquipment(getEquipment());
-      toast.success('Item eliminado');
+      try {
+        await utensiliosApi.remove(id);
+        await loadEquipment();
+        toast.success('Item eliminado');
+      } catch (err) {
+        console.error('Error deleting utensilio:', err);
+        toast.error('No se pudo eliminar el item');
+      }
     }
   };
 
-  const toggleAvailability = (item: EquipmentItem) => {
-    const updated = updateEquipmentItem(item.id, { available: !item.available });
-    if (updated) {
-      setEquipment(getEquipment());
-      toast.success(updated.available ? 'Marcado como disponible' : 'Marcado como no disponible');
+  const toggleAvailability = async (item: EquipmentItem) => {
+    const assignment = getAssignment(item.id);
+
+    try {
+      if (assignment) {
+        await serviceApi.removeUtensilio(
+          assignment.serviceId,
+          item.id
+        );
+      }
+
+      const updated = await utensiliosApi.update(item.id, {
+        name: item.name,
+        type: item.type,
+        available: !item.available,
+
+        solicitante_id: !item.available ? null : item.solicitante_id,
+        operador_id: !item.available ? null : item.operador_id
+      });
+
+      await loadEquipment();
+
+      const freshServices = await serviceApi.getAll();
+      setServices(freshServices);
+
+      toast.success(updated.available ? 'Disponible' : 'En uso');
+
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al actualizar');
     }
   };
 
@@ -175,12 +240,13 @@ export function EquipmentPage() {
     setMaintenanceItem(item);
     setMaintenanceData({
       nextMaintenanceDate: toDateTimeLocalValue(item.nextMaintenanceDate),
-      maintenanceNotes: item.maintenanceNotes || '',
+      maintenanceNotes: '',
+      personal_id: ''
     });
     setMaintenanceDialogOpen(true);
   };
 
-  const handleMaintenanceSubmit = (e: React.FormEvent) => {
+  const handleMaintenanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!maintenanceData.nextMaintenanceDate) {
@@ -194,22 +260,29 @@ export function EquipmentPage() {
     }
 
     if (maintenanceItem) {
-      const updated = updateEquipmentItem(maintenanceItem.id, {
-        nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
-        maintenanceCompleted: false,
-        maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
-      });
-
-      if (updated) {
-        setEquipment(getEquipment());
-        toast.success('Mantenimiento programado correctamente');
-        setMaintenanceDialogOpen(false);
-        checkMaintenanceNotifications(getEquipment());
+      try {
+        await utensiliosApi.scheduleMaintenance(maintenanceItem.id, {
+          nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
+          maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
+          personal_id: maintenanceData.personal_id,
+        });
+      } catch {
+        // fallback: algunos backends guardan mantenimiento desde update directo
+        await utensiliosApi.update(maintenanceItem.id, {
+          ...maintenanceItem,
+          nextMaintenanceDate: maintenanceData.nextMaintenanceDate,
+          maintenanceCompleted: false,
+          maintenanceNotes: maintenanceData.maintenanceNotes || undefined,
+        });
       }
+
+      await loadEquipment();
+      toast.success('Mantenimiento programado correctamente');
+      setMaintenanceDialogOpen(false);
     }
   };
 
-  const handleMarkMaintenanceCompleted = (item: EquipmentItem) => {
+  const handleMarkMaintenanceCompleted = async (item: EquipmentItem) => {
     if (item.type !== 'machinery') {
       toast.error('Solo la maquinaria puede marcar mantenimiento');
       return;
@@ -220,14 +293,17 @@ export function EquipmentPage() {
       return;
     }
 
-    const updated = updateEquipmentItem(item.id, {
-      maintenanceCompleted: true,
-      lastMaintenanceDate: new Date().toISOString(),
-    });
-
-    if (updated) {
-      setEquipment(getEquipment());
+    try {
+      await utensiliosApi.update(item.id, {
+        ...item,
+        maintenanceCompleted: true,
+        lastMaintenanceDate: new Date().toISOString(),
+      });
+      await loadEquipment();
       toast.success('Mantenimiento marcado como completado');
+    } catch (err) {
+      console.error('Error completing maintenance:', err);
+      toast.error('No se pudo marcar el mantenimiento');
     }
   };
 
@@ -245,13 +321,10 @@ export function EquipmentPage() {
         );
         const daysUntilMaintenance = Math.ceil((maintenanceDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-        // Atrasado solo por fecha: si ya pasó el día calendario y sigue pendiente.
-        if (!item.maintenanceCompleted && maintenanceDay.getTime() < today.getTime()) {
+        if (item.status_mantenimiento === 'En proceso') {
           toast.error(`⏰ Mantenimiento atrasado: ${item.name}`, { duration: 10000 });
-        } else if (!item.maintenanceCompleted && daysUntilMaintenance === 0) {
-         //  toast.error(`⚠️ Mantenimiento programado para hoy: ${item.name}`, { duration: 10000 });
-        } else if (daysUntilMaintenance > 0 && daysUntilMaintenance <= 3) {
-          toast.warning(`📅 Próximo a vencer (${daysUntilMaintenance}d): ${item.name}`, { duration: 8000 });
+        } else if (item.status_mantenimiento === 'Próximo') {
+          toast.warning(`📅 Próximo mantenimiento: ${item.name}`, { duration: 8000 });
         }
       }
     });
@@ -263,6 +336,25 @@ export function EquipmentPage() {
       : typeFilter === 'machinery'
       ? equipment.filter((item) => item.type === 'machinery')
       : equipment.filter((item) => item.type === typeFilter);
+
+  const getAssignment = (equipmentId: string) => {
+    const item = equipment.find(e => String(e.id) === String(equipmentId));
+
+    if (!item) return null;
+
+    if (!item.solicitante_id) return null;
+
+    const service = services.find(
+      s => String(s.solicitanteId) === String(item.solicitante_id)
+    );
+
+    if (!service) return null;
+
+    return {
+      serviceId: service.id,
+      requester: service.requesterName
+    };
+  };
 
   const stats = {
     equipment: equipment.filter(i => i.type === 'equipment').length,
@@ -283,6 +375,7 @@ export function EquipmentPage() {
             </span>
           </h1>
           <p className="text-gray-600 mt-1">Gestión de recursos del taller</p>
+          {loadingEquipment && <p className="text-sm text-gray-500 mt-2">Cargando datos...</p>}
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -317,7 +410,10 @@ export function EquipmentPage() {
                 <Label htmlFor="type">Tipo *</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value: any) => setFormData(prev => ({ ...prev, type: value }))}
+                  onValueChange={(value) => {
+                    console.log("TYPE SELECTED:", value);
+                    setFormData(prev => ({ ...prev, type: value as any }));
+                  }}
                 >
                   <SelectTrigger id="type">
                     <SelectValue />
@@ -328,17 +424,6 @@ export function EquipmentPage() {
                     <SelectItem value="machinery">Maquinaria</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Descripción</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Detalles adicionales sobre el item..."
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                />
               </div>
 
               <div className="flex items-center space-x-2">
@@ -391,17 +476,45 @@ export function EquipmentPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="maintenanceNotes">Notas de mantenimiento</Label>
-                <Textarea
-                  id="maintenanceNotes"
-                  placeholder="Detalles sobre el tipo de mantenimiento..."
-                  value={maintenanceData.maintenanceNotes}
-                  onChange={(e) =>
-                    setMaintenanceData(prev => ({ ...prev, maintenanceNotes: e.target.value }))
-                  }
-                  rows={3}
-                />
+              <div className="space-y-4">
+                {/* Técnico */}
+                <div className="space-y-2">
+                  <Label>Técnico responsable *</Label>
+                  <Select
+                    value={maintenanceData.personal_id}
+                    onValueChange={(value) =>
+                      setMaintenanceData(prev => ({ ...prev, personal_id: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar técnico..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {technicians.map((t) => (
+                        <SelectItem key={t.id} value={String(t.id)}>
+                          {t.nombre || t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Notas */}
+                <div className="space-y-2">
+                  <Label>Notas</Label>
+                  <Textarea
+                    placeholder="Detalles del mantenimiento..."
+                    value={maintenanceData.maintenanceNotes}
+                    onChange={(e) =>
+                      setMaintenanceData(prev => ({
+                        ...prev,
+                        maintenanceNotes: e.target.value
+                      }))
+                    }
+                    rows={3}
+                  />
+                </div>
+
               </div>
 
               <div className="flex gap-2 justify-end pt-4">
@@ -522,123 +635,195 @@ export function EquipmentPage() {
                         : 'border-gray-100 hover:border-blue-300 hover:shadow-md'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`p-2.5 rounded-xl ${
+                    <div className="flex items-start gap-3 mb-3">
+
+                      {/* ICONO */}
+                      <div className={`p-3 rounded-xl flex-shrink-0 ${
                         item.type === 'equipment' 
                           ? 'bg-purple-100' 
+                          : item.type === 'machinery'
+                          ? 'bg-indigo-100'
                           : 'bg-blue-100'
                       }`}>
                         {item.type === 'equipment' ? (
-                          <Settings className={`h-6 w-6 ${
-                            item.type === 'equipment' ? 'text-purple-600' : 'text-blue-600'
-                          }`} />
+                          <Settings className="h-5 w-5 text-purple-600" />
+                        ) : item.type === 'machinery' ? (
+                          <Wrench className="h-5 w-5 text-indigo-600" />
                         ) : (
-                          <Wrench className="h-6 w-6 text-blue-600" />
+                          <Wrench className="h-5 w-5 text-blue-600" />
                         )}
                       </div>
-                      <Badge
-                        className={`border ${
-                          isUnderMaintenance(item)
-                            ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                            : item.available
-                            ? 'bg-green-100 text-green-800 border-green-200'
-                            : 'bg-orange-100 text-orange-800 border-orange-200'
-                        }`}
-                      >
-                        {isUnderMaintenance(item)
-                          ? 'Mantenimiento'
-                          : item.available
-                          ? 'Disponible'
-                          : 'En Uso'}
-                      </Badge>
-                    </div>
 
-                    <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                      {item.description || 'Sin descripción'}
-                    </p>
+                      {/* TEXTO + BADGE */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 text-sm leading-tight">
+                          {item.name}
+                        </h3>
+
+                        <div className="mt-2">
+                          <Badge
+                            className={`text-xs px-2 py-0.5 border ${
+                              isUnderMaintenance(item)
+                                ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                : item.available
+                                ? 'bg-green-100 text-green-800 border-green-200'
+                                : 'bg-orange-100 text-orange-800 border-orange-200'
+                            }`}
+                          >
+                            {isUnderMaintenance(item)
+                              ? 'Mantenimiento'
+                              : item.available
+                              ? 'Disponible'
+                              : 'En uso'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                    </div>
+                    {(() => {
+                        const assignment = getAssignment(item.id);
+
+                        if (!assignment) return null;
+
+                        return (
+                          <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-xs text-gray-700 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3 text-blue-600" />
+                              <span className="font-medium">
+                                Asignado a: Servicio #{assignment.serviceId}
+                              </span>
+                              <span className="text-gray-500">
+                                - {assignment.requester}
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                     {item.type === 'machinery' && item.nextMaintenanceDate && (
+                      
                       <div className="mb-3 p-2 bg-blue-50 rounded-lg">
                         <p className="text-xs text-gray-600 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           Próx. mantenimiento: {parseMaintenanceDate(item.nextMaintenanceDate).toLocaleString('es-ES')}
                         </p>
-                        {getMaintenanceState(item) === 'overdue' && (
-                          <p className="text-xs text-red-700 font-medium mt-1">Mantenimiento atrasado</p>
+                        {item.status_mantenimiento === 'En proceso' && (
+                          <p className="text-xs text-red-700 font-medium mt-1">
+                            Mantenimiento atrasado
+                          </p>
                         )}
-                        {getMaintenanceState(item) === 'completed' && (
-                          <p className="text-xs text-green-700 font-medium mt-1">Mantenimiento completado</p>
+
+                        {item.status_mantenimiento === 'Próximo' && (
+                          <p className="text-xs text-yellow-700 font-medium mt-1">
+                            Próximo mantenimiento
+                          </p>
                         )}
-                        {item.maintenanceNotes && (
-                          <p className="text-xs text-gray-700 mt-1">{item.maintenanceNotes}</p>
+
+                        {item.status_mantenimiento === 'Al día' && (
+                          <p className="text-xs text-green-700 font-medium mt-1">
+                            Al día
+                          </p>
+                        )}
+                        {item.maintenanceDescription && (
+                          <p className="text-xs text-gray-700 mt-1">
+                            {item.maintenanceDescription}
+                          </p>
                         )}
                       </div>
                     )}
+                    {item.type === 'machinery' && (
+                      <div className="flex gap-2 mt-2">
 
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        disabled={isUnderMaintenance(item)}
-                        onClick={() => {
-                          if (isUnderMaintenance(item)) {
-                            toast.error('El equipo está en mantenimiento');
-                            return;
-                          }
-                          toggleAvailability(item);
-                        }}
-                      >
-                        {item.available ? (
-                          <>
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Marcar en uso
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Disponible
-                          </>
-                        )}
-                      </Button>
-                      {item.type === 'machinery' && (
-                        <>
+                        {/* VER DETALLES */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs flex-1"
+                          onClick={async () => {
+                            setDetailsItem(item);
+
+                            try {
+                              const res = await fetch(`/api/utensilios/${item.id}/mantenimiento`);
+                              const data = await res.json();
+                              setMaintenanceHistory(data);
+                            } catch {
+                              setMaintenanceHistory([]);
+                            }
+
+                            setDetailsOpen(true);
+                          }}
+                        >
+                          Ver detalles
+                        </Button>
+
+                        {/* 🔧 PROGRAMAR MANTENIMIENTO */}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openMaintenanceDialog(item)}
+                        >
+                          <Wrench className="h-4 w-4" />
+                        </Button>
+
+                      </div>
+                    )}
+
+                    <div className="mt-4 space-y-2">
+                      {/* ACCIONES SECUNDARIAS */}
+                      <div className="flex items-center gap-2 flex-wrap">
+
+                        <div className="flex gap-2">
+
+                          {/* DISPONIBILIDAD */}
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openMaintenanceDialog(item)}
-                            title="Programar mantenimiento"
+                            className="text-xs h-9 px-3"
+                            disabled={isUnderMaintenance(item)}
+                            onClick={() => {
+                              if (isUnderMaintenance(item)) {
+                                toast.error('El equipo está en mantenimiento');
+                                return;
+                              }
+                              toggleAvailability(item);
+                            }}
                           >
-                            <Clock className="h-4 w-4" />
+                            {item.available ? (
+                              <>
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Marcar en uso
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Marcar disponible
+                              </>
+                            )}
                           </Button>
+
+                          {/* ✏️ EDITAR */}
                           <Button
                             variant="outline"
-                            size="sm"
-                            onClick={() => handleMarkMaintenanceCompleted(item)}
-                            title="Marcar mantenimiento completado"
-                            disabled={!item.nextMaintenanceDate || !!item.maintenanceCompleted}
+                            size="icon"
+                            onClick={() => handleOpenDialog(item)}
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        </>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenDialog(item)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
+
+                          {/* 🗑️ ELIMINAR */}
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="shrink-0"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+
+                        </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
                 ))}
               </div>
 
@@ -652,6 +837,42 @@ export function EquipmentPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Detalles de mantenimiento</DialogTitle>
+          </DialogHeader>
+
+          {detailsItem && (
+            <div className="space-y-4 text-sm">
+
+              {maintenanceHistory.length === 0 ? (
+                <p className="text-gray-500">Sin historial de mantenimiento</p>
+              ) : (
+                maintenanceHistory.map((m, i) => (
+                  <div
+                    key={i}
+                    className="border rounded-lg p-3 bg-gray-50"
+                  >
+                    <p className="text-xs text-gray-500">
+                      {new Date(m.fecha_mantenimiento).toLocaleString()}
+                    </p>
+
+                    <p className="font-medium">
+                      Técnico: {m.tecnico || 'No asignado'}
+                    </p>
+
+                    <p className="text-gray-700">
+                      {m.descripcion || 'Sin notas'}
+                    </p>
+                  </div>
+                ))
+              )}
+
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

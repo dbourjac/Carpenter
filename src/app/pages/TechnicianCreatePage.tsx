@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { toast } from 'sonner';
-import { getTechnicians } from '../lib/storage';
+import { createPersonal } from '../lib/api';
 
 export function TechnicianCreatePage() {
   const navigate = useNavigate();
@@ -32,7 +32,7 @@ export function TechnicianCreatePage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -40,19 +40,13 @@ export function TechnicianCreatePage() {
       return;
     }
 
-    const technicians = getTechnicians();
-
-    const newTechnician = {
-      id: Date.now().toString(),
-      ...formData,
-    };
-
-    technicians.push(newTechnician);
-    localStorage.setItem('technicians', JSON.stringify(technicians));
-
-    toast.success('Técnico creado correctamente');
-
-    navigate('/technicians');
+    try {
+      await createPersonal(formData);
+      toast.success('Técnico creado correctamente');
+      navigate('/technicians');
+    } catch (error) {
+      toast.error('Error al crear técnico');
+    }
   };
 
   const updateField = (field: string, value: string) => {
@@ -139,7 +133,7 @@ export function TechnicianCreatePage() {
             <div className="space-y-2">
             <Label>Cargo *</Label>
             <Input
-                placeholder="ej. Técnico, Supervisor"
+                placeholder="ej. Técnico, Jefe de Taller"
                 value={formData.cargo}
                 onChange={(e) => updateField('cargo', e.target.value)}
                 className={`h-11 ${errors.cargo ? 'border-red-500' : ''}`}

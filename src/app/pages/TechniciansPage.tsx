@@ -1,23 +1,43 @@
-import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { getServices, getTechnicians } from '../lib/storage';
+import { useEffect, useMemo, useState } from 'react';
+import { getPersonal, serviceApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Plus } from 'lucide-react';
 
+
 export function TechniciansPage() {
-  const technicians = getTechnicians();
-  const services = getServices();
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
 
   const [search, setSearch] = useState('');
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const personal = await getPersonal();
+        setTechnicians(personal);
+
+        const allServices = await serviceApi.getAll();
+        setServices(allServices);
+
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const techniciansWithLoad = useMemo(() => {
     return technicians.map((tech) => {
-      const activeServices = services.filter(
-        (s) =>
-          s.assignedTechnician === tech.nombre &&
-          s.status !== 'completed'
+      const assigned = services.filter(
+        (s) => String(s.assignedTechnician) === String(tech.id)
+      );
+
+      const activeServices = assigned.filter(
+        (s) => s.status !== 'completed'
       ).length;
 
       let status = 'available';
@@ -35,7 +55,9 @@ export function TechniciansPage() {
   const filteredTechnicians = useMemo(() => {
     return techniciansWithLoad
       .filter((tech) =>
-        tech.nombre.toLowerCase().includes(search.toLowerCase())
+        (tech.nombre || tech.name || '')
+          .toLowerCase()
+          .includes(search.toLowerCase())
       )
       .sort((a, b) => {
         const order = { saturated: 0, busy: 1, available: 2 };
@@ -95,7 +117,7 @@ export function TechniciansPage() {
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-lg">
-                      {tech.nombre}
+                      {tech.nombre || tech.name || 'Sin nombre'}
                     </h3>
 
                     {tech.status === 'available' && (
@@ -115,7 +137,7 @@ export function TechniciansPage() {
                     )}
 
                     <Badge variant="outline">
-                      {tech.especialidad}
+                      {tech.especialidad || 'Sin especialidad'}
                     </Badge>
                     
                     <Badge className="bg-gray-100 text-gray-800">

@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { getTechnicians, getServices } from '../lib/storage';
+import { useEffect, useState } from 'react';
+import { getPersonal, serviceApi } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -10,20 +11,37 @@ import { Link } from "react-router";
 export function TechnicianDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [technician, setTechnician] = useState<any>(null);
+    useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // 🔹 traer técnicos
+        const personal = await getPersonal();
+        const found = personal.find((t: any) => String(t.id) === id);
+        setTechnician(found);
 
-  const technicians = getTechnicians();
-  const services = getServices();
+        // 🔹 traer servicios
+        const allServices = await serviceApi.getAll();
+        setServices(allServices);
 
-  const technician = technicians.find(t => t.id === id);
+      } catch (error) {
+        console.error(error);
+      }
+    };
 
-  if (!technician) return null;
+    fetchData();
+  }, [id]);
 
+  const [services, setServices] = useState<any[]>([]);
+  if (!technician) {
+    return <p className="p-4">Cargando...</p>;
+  }
   const assignedServices = services.filter(
-    s => s.assignedTechnician === technician.nombre
+    (s) => String(s.assignedTechnician) === String(technician.id)
   );
 
   const activeServices = assignedServices.filter(
-    s => s.status !== 'completed'
+    (s) => s.status !== 'completed'
   );
 
   let status = 'available';

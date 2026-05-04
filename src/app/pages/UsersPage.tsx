@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -15,25 +15,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-import { getAllUsers, createUser, updateUser, deleteUser, getCurrentUser, getUserById } from '../lib/storage';
+import { getCurrentUser } from '../lib/storage';
+import { authApi } from '../lib/api';
+import { normalizeUser } from '../lib/utils';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 
 export function UsersPage() {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
-  const [users, setUsers] = useState(getAllUsers().filter(u => u.role === 'manager'));
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    phone: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await authApi.listUsers();
+      const rawUsers = Array.isArray(response)
+        ? response
+        : response?.usuarios ?? response?.users ?? response?.data ?? [];
+
+      setUsers(rawUsers.map(normalizeUser).filter((user: { role: string; }) => user.role === 'supervisor'));
+    } catch (err) {
+      console.error('Error loading jefes de taller:', err);
+      toast.error('No se pudieron cargar los jefes de taller');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadUsers();
+  }, []);
 
   // Solo admin puede acceder
   if (!currentUser || currentUser.role !== 'admin') {
@@ -50,9 +71,8 @@ export function UsersPage() {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', password: '', confirmPassword: '', phone: '' });
+    setFormData({ email: '', password: '', confirmPassword: '' });
     setErrors({});
-    setEditingUserId(null);
   };
 
   const openCreateDialog = () => {
@@ -60,50 +80,31 @@ export function UsersPage() {
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (id: string) => {
-    const user = getUserById(id);
-    if (!user) {
-      toast.error('Jefe de taller no encontrado');
-      return;
-    }
-
-    setEditingUserId(id);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: '',
-      confirmPassword: '',
-      phone: user.phone || '',
-    });
-    setErrors({});
-    setIsDialogOpen(true);
-  };
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     const normalizedEmail = formData.email.trim();
 
-    if (!formData.name.trim()) newErrors.name = 'El nombre es requerido';
-    if (!normalizedEmail) newErrors.email = 'El email es requerido';
-    else if (!/\S+@\S+\.\S+/.test(normalizedEmail)) newErrors.email = 'Email inválido';
-    else if (users.some(u => u.email === normalizedEmail && u.id !== editingUserId)) {
-      newErrors.email = 'Este email ya está registrado';
+    if (!normalizedEmail) {
+      newErrors.email = 'El email es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
+      newErrors.email = 'Email inválido';
     }
 
-    if (!editingUserId || formData.password.trim()) {
-      if (!formData.password.trim()) newErrors.password = 'La contraseña es requerida';
-      else if (formData.password.length < 6) newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+    if (!formData.password.trim()) {
+      newErrors.password = 'La contraseña es requerida';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+    }
 
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Las contraseñas no coinciden';
-      }
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Las contraseñas no coinciden';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -112,33 +113,25 @@ export function UsersPage() {
     }
 
     try {
-      if (editingUserId) {
-        updateUser(editingUserId, {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone || undefined,
-          ...(formData.password ? { password: formData.password } : {}),
-          role: 'manager',
-        });
-        toast.success(`Jefe de Taller ${formData.name} actualizado correctamente`);
-      } else {
-        createUser({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          phone: formData.phone || undefined,
-          role: 'manager',
-        });
-        toast.success(`Jefe de Taller ${formData.name} registrado correctamente`);
-      }
+      await authApi.createUser({
+        name: '',
+        email: formData.email.trim(),
+        password: formData.password,
+        role: 'supervisor',
+      });
 
-      setUsers(getAllUsers().filter(u => u.role === 'manager'));
+      toast.success(`Jefe de Taller registrado correctamente`);
+
       setIsDialogOpen(false);
       resetForm();
+      await loadUsers();
+
     } catch (err) {
-      toast.error((err as Error).message);
+      console.error('Error saving user:', err);
+      toast.error('No se pudo guardar el usuario');
     }
   };
+
 
   const handleDelete = (id: string) => {
     if (id === currentUser.id) {
@@ -146,9 +139,9 @@ export function UsersPage() {
       return;
     }
 
-    const user = getUserById(id);
+    const user = users.find((item) => item.id === id);
     if (!user) {
-      toast.error('Jefe de taller no encontrado');
+      toast.error('Jefe de Taller no encontrado');
       return;
     }
 
@@ -158,15 +151,16 @@ export function UsersPage() {
   const confirmDelete = () => {
     if (!deleteTarget) return;
 
-    const deleted = deleteUser(deleteTarget.id);
-    if (deleted) {
-      setUsers(getAllUsers().filter(u => u.role === 'manager'));
-      toast.success('Jefe de Taller eliminado correctamente');
-    } else {
-      toast.error('No se pudo eliminar el usuario');
-    }
-
-    setDeleteTarget(null);
+    void authApi.deleteUser(deleteTarget.id)
+      .then(() => {
+        toast.success('Jefe de Taller eliminado correctamente');
+        setDeleteTarget(null);
+        void loadUsers();
+      })
+      .catch((err) => {
+        console.error('Error deleting user:', err);
+        toast.error('No se pudo eliminar el usuario');
+      });
   };
 
   return (
@@ -186,22 +180,13 @@ export function UsersPage() {
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg" onClick={openCreateDialog}>
+              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg" onClick={openCreateDialog}>
               <Plus className="mr-2 h-5 w-5" />
               Registrar Jefe de Taller
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{editingUserId ? 'Editar Jefe de Taller' : 'Registrar Nuevo Jefe de Taller'}</DialogTitle>
-            </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre Completo *</Label>
-                <Input id="name" placeholder="ej. Juan Pérez" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} className={errors.name ? 'border-red-500' : ''} />
-                {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">Correo Electrónico *</Label>
                 <Input id="email" type="email" placeholder="usuario@empresa.com" value={formData.email} onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} className={errors.email ? 'border-red-500' : ''} />
@@ -209,26 +194,48 @@ export function UsersPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono (Opcional)</Label>
-                <Input id="phone" placeholder="+1234567890" value={formData.phone} onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">{editingUserId ? 'Nueva Contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}</Label>
-                <Input id="password" type="password" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))} className={errors.password ? 'border-red-500' : ''} />
+                <Label htmlFor="password">Contraseña *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, password: e.target.value }))
+                  }
+                  className={errors.password ? 'border-red-500' : ''}
+                />
                 {errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Contraseña {editingUserId ? '(si cambias la contraseña)' : '*'}</Label>
-                <Input id="confirmPassword" type="password" placeholder="••••••••" value={formData.confirmPassword} onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))} className={errors.confirmPassword ? 'border-red-500' : ''} />
-                {errors.confirmPassword && <p className="text-sm text-red-600">{errors.confirmPassword}</p>}
+             <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))
+                  }
+                  className={errors.confirmPassword ? 'border-red-500' : ''}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-600">{errors.confirmPassword}</p>
+                )}
               </div>
 
               <div className="flex gap-2 justify-end pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  {editingUserId ? 'Guardar Cambios' : 'Registrar Jefe'}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+
+                <Button type="submit">
+                  Crear usuario
                 </Button>
               </div>
             </form>
@@ -252,24 +259,17 @@ export function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Nombre</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Email</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Teléfono</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium">{user.name}</td>
                       <td className="py-3 px-4 text-sm text-gray-600">{user.email}</td>
-                      <td className="py-3 px-4 text-sm text-gray-600">{user.phone || '-'}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-blue-600" onClick={() => openEditDialog(user.id)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-red-600" onClick={() => handleDelete(user.id)} disabled={user.id === currentUser.id} title={user.id === currentUser.id ? 'No puedes eliminar tu propia cuenta' : 'Eliminar jefe de taller'}>
+                          <Button variant="ghost" size="sm" className="text-gray-600 hover:text-red-600" onClick={() => handleDelete(user.id)} disabled={user.id === currentUser.id} title={user.id === currentUser.id ? 'No puedes eliminar tu propia cuenta' : 'Eliminar supervisor'}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>

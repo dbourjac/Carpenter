@@ -1,4 +1,77 @@
-import { ServiceStatus, ServiceType, ServicePriority } from './types';
+import { ServiceStatus, ServiceType, ServicePriority, User, UserRole } from './types';
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrador',
+  supervisor: 'Jefe de Taller',
+};
+
+const ADMIN_ROLE_ALIASES = new Set([
+  'admin',
+  'administrator',
+  'administrador',
+  'superadmin',
+  'root',
+]);
+
+const SUPERVISOR_ROLE_ALIASES = new Set([
+  'manager',
+  'supervisor',
+  'jefedetaller',
+  'jefe_de_taller',
+  'jefe-taller',
+  'jefe',
+  'encargado',
+]);
+
+export const normalizeUserRole = (role: unknown): UserRole => {
+  if (typeof role !== 'string') return 'supervisor';
+
+  const normalized = role.trim().toLowerCase().replace(/[\s_-]+/g, '');
+
+  if (ADMIN_ROLE_ALIASES.has(normalized)) return 'admin';
+  if (SUPERVISOR_ROLE_ALIASES.has(normalized)) return 'supervisor';
+
+  return normalized.includes('admin') ? 'admin' : 'supervisor';
+};
+
+export const getRoleLabel = (role: unknown): string => {
+  return ROLE_LABELS[normalizeUserRole(role)];
+};
+
+const unwrapUserPayload = (value: any): any => {
+  if (!value || typeof value !== 'object') return value;
+
+  return value.usuario ?? value.user ?? value.data ?? value;
+};
+
+export const normalizeUser = (user: any): User => {
+  const payload = unwrapUserPayload(user);
+
+  return {
+    id: String(payload?.id ?? payload?._id ?? payload?.user_id ?? ''),
+
+    name: '',
+    phone: '',
+
+    email: String(
+      payload?.email ??
+      payload?.correo ??
+      payload?.nombre_usuario ??
+      ''
+    ),
+
+    role: normalizeUserRole(
+      payload?.role ??
+      payload?.rol ??
+      payload?.cargo ??
+      payload?.cargo_personal ??
+      payload?.tipo_usuario ??
+      payload?.userRole
+    ),
+
+    token: payload?.token ?? payload?.accessToken ?? payload?.access_token,
+  };
+};
 
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -119,11 +192,13 @@ export const filterServices = (
   }
 ) => {
   return services.filter(service => {
+    const q = searchQuery.toLowerCase();
+
     const matchesSearch =
-      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.requesterArea.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      (service.nombre_servicio || '').toLowerCase().includes(q) ||
+      (service.nombre_contacto || '').toLowerCase().includes(q) ||
+      (service.nombre_area || '').toLowerCase().includes(q) ||
+      (service.descripcion || '').toLowerCase().includes(q);
 
     const matchesStatus = statusFilter === 'all' || service.status === statusFilter;
     const matchesType = typeFilter === 'all' || service.type === typeFilter;

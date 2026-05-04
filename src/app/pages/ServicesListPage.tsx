@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { Link } from 'react-router';
 import { Plus, Filter, Search, Calendar } from 'lucide-react';
@@ -7,12 +7,14 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
-import { getServices } from '../lib/storage';
-import { getStatusLabel, getTypeLabel, getPriorityLabel, getStatusColor, getPriorityColor, formatDate, sortServices, filterServices } from '../lib/utils';
-
+import { serviceApi, getPersonal } from '../lib/api';
+import { ServiceRequest } from '../lib/types';
+import { getStatusLabel, getStatusColor, getPriorityColor, getPriorityLabel, formatDate } from '../lib/utils';
+import { toast } from 'sonner';
 
 export function ServicesListPage() {
-  const services = getServices();
+  const [services, setServices] = useState<ServiceRequest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(
@@ -21,30 +23,48 @@ export function ServicesListPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const period = searchParams.get('period');
+  const [personal, setPersonal] = useState<any[]>([]);
 
-  const filteredServices = useMemo(() => {
-    let result = filterServices(services, {
-      searchQuery,
-      statusFilter,
-      typeFilter,
-      priorityFilter
-    });
+  const filteredServices = services
+    .filter(service =>
+      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.requesterName.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter(service => statusFilter === 'all' || service.status === statusFilter)
+    .filter(service => priorityFilter === 'all' || service.priority === priorityFilter)
+    .filter(service => typeFilter === 'all' || service.type === typeFilter);
 
-    if (period === 'month') {
-      const now = new Date();
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        const data = await serviceApi.getAll();
+        setServices(data);
+      } catch (error) {
+        console.error(error);
+        toast.error('Error al cargar servicios');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      result = result.filter((s) => {
-        const date = new Date(s.endDate || s.startDate);
+    const fetchPersonal = async () => {
+      const data = await getPersonal();
+      setPersonal(data);
+    };
 
-        return (
-          date.getMonth() === now.getMonth() &&
-          date.getFullYear() === now.getFullYear()
-        );
-      });
-    }
+    fetchPersonal();
 
-    return sortServices(result);
-  }, [services, searchQuery, statusFilter, typeFilter, priorityFilter, period]);
+    fetchServices();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Cargando servicios...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -189,7 +209,12 @@ export function ServicesListPage() {
                             {getPriorityLabel(service.priority)}
                           </Badge>
                           <Badge variant="outline">
-                            {getTypeLabel(service.type)}
+                            {{
+                              preventive: 'Preventivo',
+                              corrective: 'Correctivo',
+                              installation: 'Instalación',
+                              other: 'Otro',
+                            }[service.type] || 'Sin tipo'}
                           </Badge>
                         </div>
                       </div>
@@ -203,7 +228,10 @@ export function ServicesListPage() {
                         </div>
                         {service.assignedTechnician && (
                           <div>
-                            <span className="font-medium text-gray-700">Técnico:</span> {service.assignedTechnician}
+                            <span className="font-medium text-gray-700">Técnico:</span> {
+                                personal.find(p => String(p.id) === String(service.assignedTechnician))?.nombre 
+                                || service.assignedTechnician
+                              }
                           </div>
                         )}
                         <div className="flex items-center gap-1">

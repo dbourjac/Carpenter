@@ -14,6 +14,7 @@ import logoUnison from '../../styles/logo_unison.png';
 import { Button } from './ui/button';
 import { useState } from 'react';
 import { getCurrentUser } from '../lib/storage';
+import { getRoleLabel } from '../lib/utils';
 
 interface LayoutProps {
   children: ReactNode;
@@ -93,7 +94,7 @@ export function Layout({ children }: LayoutProps) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{user.name}</p>
                 <p className="text-xs text-blue-300">
-                  {user.role === 'admin' ? 'Administrador' : 'Jefe de Taller'}
+                  {getRoleLabel(user.role)}
                 </p>
               </div>
             </div>
