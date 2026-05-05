@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getPersonal, serviceApi } from '../lib/api';
+import { getPersonal, serviceApi, updatePersonal } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -12,6 +12,13 @@ export function TechnicianDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [technician, setTechnician] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    telefono: '',
+    cargo: '',
+    especialidad: ''
+  });
     useEffect(() => {
     const fetchData = async () => {
       try {
@@ -19,6 +26,12 @@ export function TechnicianDetailPage() {
         const personal = await getPersonal();
         const found = personal.find((t: any) => String(t.id) === id);
         setTechnician(found);
+        setFormData({
+          nombre: found?.nombre || '',
+          telefono: found?.telefono || '',
+          cargo: found?.cargo || '',
+          especialidad: found?.especialidad || ''
+        });
 
         // 🔹 traer servicios
         const allServices = await serviceApi.getAll();
@@ -45,6 +58,25 @@ export function TechnicianDetailPage() {
   );
 
   let status = 'available';
+  const handleSave = async () => {
+    try {
+      console.log("ENVIANDO:", formData);
+
+      await updatePersonal(technician.id, formData);
+
+      console.log("OK GUARDADO");
+
+      setTechnician((prev: any) => ({
+        ...prev,
+        ...formData,
+      }));
+
+      setIsEditing(false);
+
+    } catch (error) {
+      console.error("ERROR GUARDAR:", error);
+    }
+  };
   if (activeServices.length >= 3) status = 'saturated';
   else if (activeServices.length >= 1) status = 'busy';
 
@@ -87,6 +119,13 @@ export function TechnicianDetailPage() {
           <p className="text-gray-500 text-sm mt-1">
             Detalles del técnico
           </p>
+
+          <Button
+            onClick={() => setIsEditing(true)}
+            className="mt-2"
+          >
+            Editar
+          </Button>
         </div>
       </div>
 
@@ -109,7 +148,17 @@ export function TechnicianDetailPage() {
                 <div className="px-3 py-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Nombre</p>
                   <p className="font-semibold text-gray-900">
-                    {technician.nombre}
+                    {isEditing ? (
+                      <input
+                        value={formData.nombre}
+                        onChange={(e) =>
+                          setFormData({ ...formData, nombre: e.target.value })
+                        }
+                        className="w-full border rounded px-2 py-1"
+                      />
+                    ) : (
+                      technician.nombre
+                    )}
                   </p>
                 </div>
 
@@ -123,25 +172,69 @@ export function TechnicianDetailPage() {
                 <div className="px-3 py-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Teléfono</p>
                   <p className="text-gray-900">
-                    {technician.telefono}
+                    {isEditing ? (
+                      <input
+                        value={formData.telefono}
+                        onChange={(e) =>
+                          setFormData({ ...formData, telefono: e.target.value })
+                        }
+                        className="w-full border rounded px-2 py-1"
+                      />
+                    ) : (
+                      technician.telefono
+                    )}
                   </p>
                 </div>
 
                 <div className="px-3 py-2 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Especialidad</p>
                   <p className="text-gray-900">
-                    {technician.especialidad}
+                    {isEditing ? (
+                      <input
+                        value={formData.especialidad}
+                        onChange={(e) =>
+                          setFormData({ ...formData, especialidad: e.target.value })
+                        }
+                        className="w-full border rounded px-2 py-1"
+                      />
+                    ) : (
+                      technician.especialidad
+                    )}
                   </p>
                 </div>
 
                 <div className="px-3 py-2 bg-gray-50 rounded-lg col-span-2">
                   <p className="text-xs text-gray-500">Cargo</p>
                   <p className="text-gray-900">
-                    {technician.cargo}
+                    {isEditing ? (
+                      <input
+                        value={formData.cargo}
+                        onChange={(e) =>
+                          setFormData({ ...formData, cargo: e.target.value })
+                        }
+                        className="w-full border rounded px-2 py-1"
+                      />
+                    ) : (
+                      technician.cargo
+                    )}
                   </p>
                 </div>
 
               </div>
+              {isEditing && (
+                <div className="flex gap-2 mt-3 px-3">
+                  <Button onClick={handleSave}>
+                    Guardar
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditing(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 

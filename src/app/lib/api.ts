@@ -17,7 +17,7 @@ const normalizeServiceType = (value: unknown): ServiceType => {
   const raw = String(value ?? '').toLowerCase();
   if (raw.includes('prevent')) return 'preventive';
   if (raw.includes('instal')) return 'installation';
-  if (raw.includes('corr')) return 'corrective';
+  if (raw.includes('corr') || raw.includes('repar')) return 'corrective';
   return 'other';
 };
 
@@ -35,8 +35,13 @@ const normalizeServicePriority = (value: unknown): 'low' | 'medium' | 'high' => 
   return 'medium';
 };
 
-const normalizeService = (row: any): ServiceRequest => {
-  const source = row?.servicio ?? row?.service ?? row;
+const normalizeService = (row: any): any => {
+  const source =
+    row?.servicio ??
+    row?.service ??
+    row?.data ??
+    row?.item ??
+    row;
 
   const rawId = source?.id ?? source?.servicio_id ?? source?.id_servicio;
   const safeId =
@@ -63,7 +68,23 @@ const normalizeService = (row: any): ServiceRequest => {
 
   return {
     id: safeId,
+    tipo_hs_servicio: source?.tipo_hs_servicio,
+    status_final: source?.status_final,
+    fecha_inicio: source?.fecha_inicio,
+    fecha_fin: source?.fecha_fin,
+    nombre_personal: source?.nombre_personal,
+    nombre_area:
+      source?.nombre_area ??
+      source?.area ??
+      '',
+    descripcion:
+      source?.descripcion ??
+      source?.detalle ??
+      source?.observaciones ??
+      source?.seguimiento ??
+      '',
     name: source?.nombre_servicio ?? source?.nombre ?? source?.name ?? 'SIN NOMBRE',
+    nombre_servicio: source?.nombre_servicio ?? source?.nombre ?? source?.name ?? 'SIN NOMBRE',
     type: normalizeServiceType(
       source?.tipo_servicio ?? source?.tipo_seg_servicio ?? source?.type ?? source?.tipo
     ),
@@ -80,10 +101,33 @@ const normalizeService = (row: any): ServiceRequest => {
       source?.estimatedCompletionDate ??
       source?.fecha_estimada,
     requesterName:
-      source?.nombre_contacto ?? source?.nombre_solicitante ?? 'Sin nombre',
-    requesterPhone: source?.telefono ?? '',
-    requesterEmail: source?.email ?? '',
-    requesterArea: source?.nombre_area ?? '',
+      source?.nombre_contacto ??
+      source?.nombre_solicitante ??
+      source?.solicitante_nombre ??
+      source?.solicitante?.nombre ??
+      source?.nombre_contacto_solicitante ??
+      source?.contacto ??
+      source?.nombre ??
+      '',
+    requesterPhone:
+      source?.telefono ??
+      source?.tel_solicitante ??
+      source?.telefono_solicitante ??
+      source?.solicitante?.telefono ??
+      source?.phone ??
+      '',
+    requesterEmail:
+      source?.email ??
+      source?.correo ??
+      source?.email_solicitante ??
+      source?.solicitante?.email ??
+      '',
+    requesterArea:
+      source?.nombre_area ??
+      source?.area ??
+      source?.departamento ??
+      source?.solicitante?.area ??
+      '',
     assignedTechnician:
       source?.personal_id ??
       source?.tecnico_id ??
@@ -96,7 +140,12 @@ const normalizeService = (row: any): ServiceRequest => {
     )
       ? (source?.equipos ?? source?.utensilios ?? source?.utensilio)
       : [],
-    observations: String(source?.observaciones ?? source?.seguimiento ?? source?.observations ?? ''),
+    observations: String(
+      source?.observaciones ??
+      source?.descripcion ??
+      source?.detalle ??
+      ''
+    ),
     location: extractedLoc || source?.location || '',
     description: extractedDesc || source?.description || source?.descripcion || '',
     evidenceImages: source?.imagenes ?? [],
@@ -237,13 +286,42 @@ export const authApi = {
 };
 
 export const reportesApi = {
-  getHistorial: async () => {
-    const response = await api.get('/api/reportes/historial');
-    const rows = Array.isArray(response.data)
-      ? response.data
-      : response.data?.servicios ?? response.data?.data ?? [];
+  getHistorial: async (params?: any) => {
+    const response = await api.get('/api/reportes/historial', { params });
+    const rows = Array.isArray(response.data) ? response.data : [];
     return rows.map(normalizeService);
   },
+
+  getResumenTipo: async () => {
+    const response = await api.get('/api/reportes/resumen-tipo');
+    return response.data;
+  },
+
+  getDashboard: async () => {
+    const response = await api.get('/api/reportes/dashboard');
+    return response.data;
+  },
+
+  getActivos: async () => {
+    const response = await api.get('/api/reportes/activos');
+    const rows = Array.isArray(response.data) ? response.data : [];
+    return rows.map(normalizeService);
+  },
+
+  getRankingPersonal: async () => {
+    const res = await api.get('/api/reportes/ranking-personal');
+    return res.data;
+  },
+
+  getMantenimientos: async () => {
+    const res = await api.get('/api/reportes/mantenimientos');
+    return res.data;
+  },
+
+  getHistorialMantenimiento: async (params?: any) => {
+    const res = await api.get('/api/reportes/historial-mantenimiento', { params });
+    return res.data;
+  }
 };
 
 export const utensiliosApi = {
@@ -347,7 +425,7 @@ export async function getPersonal() {
 // SEGUIMIENTO
 export const seguimientoApi = {
   getByServiceId: async (serviceId: string) => {
-    const response = await api.get(`/api/seguimiento/servicio/${serviceId}`);
+    const response = await api.get(`/api/seguimiento/por-servicio/${serviceId}`);
     return response.data;
   },
 
@@ -367,10 +445,13 @@ export const seguimientoApi = {
     return response.data;
   },
 
-  update: async (id: string, observaciones: string) => {
-    const response = await api.patch(`/api/seguimiento/${id}/observaciones`, {
-      observaciones: observaciones ?? null,
-    });
+  updateObservaciones: async (id: string, data: { observaciones: string }) => {
+    const response = await api.patch(`/api/seguimiento/${id}/observaciones`, data);
+    return response.data;
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await api.put(`/api/seguimiento/${id}`, data);
     return response.data;
   },
 
@@ -482,7 +563,7 @@ const toBackendService = (datos: any) => {
     solicitante_id: datos.solicitanteId ?? null,
     personal_id: datos.assignedTechnician ?? null,
     observaciones: datos.observations ?? null,
-    fecha_fin_estimada: toDate(datos.estimatedCompletionDate),
+    fecha_fin_estimada: datos.estimatedCompletionDate || null,
   };
 };
 
@@ -518,7 +599,9 @@ export const serviceApi = {
   },
 
   completar: async (id: string, fecha_fin: string) => {
-    const response = await api.patch(`/api/servicios/${id}/completar`, { fecha_fin });
+    const response = await api.patch(`/api/servicios/${id}/completar`, {
+      fecha_fin
+    });
     return normalizeService(response.data);
   },
 
@@ -570,4 +653,9 @@ export const serviceApi = {
     const response = await api.delete(`/api/servicios/${id}/evidencias/${evidencia_id}`);
     return normalizeService(response.data);
   },
+};
+
+export const updatePersonal = async (id: number, data: any) => {
+  const response = await api.put(`/api/personal/${id}`, data);
+  return response.data;
 };

@@ -4,44 +4,129 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Separator } from '../components/ui/separator';
-import { reportesApi } from '../lib/api';
-import { ServiceRequest } from '../lib/types';
+import { reportesApi, serviceApi, seguimientoApi } from '../lib/api';
 import { getStatusLabel, getTypeLabel, getPriorityLabel, formatDate } from '../lib/utils';
 import { toast } from 'sonner';
 
 export function ReportsPage() {
-  const [services, setServices] = useState<ServiceRequest[]>([]);
+  const [services, setServices] = useState<any[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
   const [reportType, setReportType] = useState<string>('daily');
   const [isGenerated, setIsGenerated] = useState(false);
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [ranking, setRanking] = useState<any[]>([]);
+  const [mantenimientos, setMantenimientos] = useState<any[]>([]);
+  const [resumenTipo, setResumenTipo] = useState<any[]>([]);
+  const [technicianFilter, setTechnicianFilter] = useState('');
+  const [fullService, setFullService] = useState<any>(null);
+  const [seguimiento, setSeguimiento] = useState<any>(null);
+  const [evidencias, setEvidencias] = useState<any[]>([]);
+  const [utensilios, setUtensilios] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: '',
     end: ''
   });
+  const uniqueTechnicians = [
+    ...new Set(
+      services
+        .map(s => s.nombre_personal)
+        .filter(Boolean)
+    )
+  ];
 
   useEffect(() => {
-    const loadServices = async () => {
+    const loadData = async () => {
       setLoadingServices(true);
+
       try {
-        const rows = await reportesApi.getHistorial();
-        setServices(rows);
+        let dash = null;
+        let rankingData = [];
+        let mant = [];
+        let resumen = [];
+
+        let servicios = [];
+
+        try {
+          servicios = await serviceApi.getAll();
+        } catch (e) {
+          console.error('services falló', e);
+        }
+
+        try {
+          dash = await reportesApi.getDashboard();
+        } catch (e) {
+          console.error('dashboard falló', e);
+        }
+
+        try {
+          rankingData = await reportesApi.getRankingPersonal();
+        } catch (e) {
+          console.error('ranking falló', e);
+        }
+
+        try {
+          mant = await reportesApi.getMantenimientos();
+        } catch (e) {
+          console.error('mantenimientos falló', e);
+        }
+
+        try {
+          resumen = await reportesApi.getResumenTipo();
+        } catch (e) {
+          console.error('resumen falló', e);
+        }
+
+        setServices(servicios || []);
+        setDashboard(dash);
+        setRanking(rankingData);
+        setMantenimientos(Array.isArray(mant) ? mant : mant?.data || []);
+        setResumenTipo(Array.isArray(resumen) ? resumen : []);
+
       } catch (err) {
-        console.error('Error loading report data:', err);
-        toast.error('No se pudieron cargar los datos de reportes');
+        console.error(err);
+        toast.error('Error cargando reportes');
       } finally {
         setLoadingServices(false);
       }
     };
 
-    void loadServices();
-  }, []);
+    loadData();
+  }, [dateRange]);
 
-  const selectedService = services.find(s => s.id === selectedServiceId);
+  const selectedService = services.find(s => String(s.id) === String(selectedServiceId));
+    const serviceData = fullService || selectedService;
+    useEffect(() => {
+    if (!selectedServiceId) return;
+
+    const loadExtraData = async () => {
+      try {
+        const full = await serviceApi.getById(selectedServiceId);
+        setFullService(full);
+
+        const seg = await seguimientoApi.getByServiceId(selectedServiceId);
+        const item = Array.isArray(seg) ? seg[0] : seg;
+        setSeguimiento(item);
+
+        const ev = await serviceApi.getEvidencias(selectedServiceId);
+        setEvidencias(Array.isArray(ev) ? ev : []);
+
+        const res = await fetch(`http://localhost:3000/api/servicios/${selectedServiceId}/utensilios`);
+        const data = await res.json();
+        setUtensilios(Array.isArray(data) ? data : []);
+
+      } catch (err) {
+        console.error('Error cargando datos extra', err);
+      }
+    };
+
+    loadExtraData();
+  }, [selectedServiceId]);
 
   const handleGeneratePDF = () => {
-    if (!isGenerated) {
-      toast.error('Primero genera el reporte');
+    const data = getFilteredServices();
+    if (data.length === 0) {
+      toast.error('No hay datos para exportar');
       return;
     }
 
@@ -49,12 +134,12 @@ export function ReportsPage() {
   };
 
   const handleGenerateExcel = () => {
-    if (!isGenerated) {
-      toast.error('Primero genera el reporte');
+    const data = getFilteredServices();
+
+    if (data.length === 0) {
+      toast.error('No hay datos para exportar');
       return;
     }
-
-    const data = getFilteredServices();
 
     let htmlContent = `
       <html>
@@ -77,54 +162,45 @@ export function ReportsPage() {
     data.forEach(s => {
       htmlContent += `
         <div class="section">
-          <h2>Servicio #${s.id}</h2>
+          <h2>${s.nombre_servicio || s.name || `Servicio #${s.id}`}</h2>
 
-          <p><span class="label">Tipo:</span> ${getTypeLabel(s.type)}</p>
-          <p><span class="label">Estado:</span> ${getStatusLabel(s.status)}</p>
-          <p><span class="label">Técnico:</span> ${s.assignedTechnician || 'No asignado'}</p>
-          <p><span class="label">Fecha inicio:</span> ${formatDate(s.startDate)}</p>
-          <p><span class="label">Fecha fin:</span> ${formatDate(s.endDate)}</p>
+          <p><b>Tipo:</b> ${
+            String(s.tipo_hs_servicio || '').toLowerCase().includes('prevent')
+              ? 'Preventivo'
+              : 'Correctivo'
+          }</p>
 
-          <p><span class="label">Descripción:</span> ${s.description || 'N/A'}</p>
+          <p><b>Estado:</b> ${s.status_final}</p>
+          <p><b>Técnico:</b> ${s.nombre_personal || 'No asignado'}</p>
+          <p><b>Fecha inicio:</b> ${formatDate(s.fecha_inicio)}</p>
+          <p><b>Fecha fin:</b> ${formatDate(s.fecha_fin)}</p>
 
-          <div class="section">
-            <h3>Solicitante</h3>
-            <p>${s.requesterName} - ${s.requesterArea}</p>
-            <p>${s.requesterPhone} - ${s.requesterEmail}</p>
-          </div>
+          <h3>Solicitante</h3>
+          <p>${s.requesterName || 'N/A'} - ${s.nombre_area || ''}</p>
+          <p>${s.requesterPhone || ''} - ${s.requesterEmail || ''}</p>
 
-          <div class="section">
-            <h3>Materiales</h3>
-            ${
-              s.materials?.length
-                ? `<table>
-                    <tr><th>Material</th><th>Cantidad</th><th>Unidad</th></tr>
-                    ${s.materials.map(m => `
-                      <tr>
-                        <td>${m.name}</td>
-                        <td>${m.quantity}</td>
-                        <td>${m.unit}</td>
-                      </tr>
-                    `).join('')}
-                  </table>`
-                : `<p>No se registraron materiales</p>`
-            }
-          </div>
+          <h3>Detalles</h3>
+          <p><b>Observaciones:</b> ${seguimiento?.observaciones || 'Sin observaciones'}</p>
+          <p><b>Descripción:</b> ${s.descripcion || ''}</p>
 
-          <div class="section">
-            <h3>Herramientas</h3>
-            ${
-              s.tools?.length
-                ? `<ul>${s.tools.map(t => `<li>${t}</li>`).join('')}</ul>`
-                : `<p>No se registraron herramientas</p>`
-            }
-          </div>
+          <h4>Equipos</h4>
+          ${
+            utensilios.length > 0
+              ? utensilios.map(u => `<p>${u.tipo_utensilio || u.nombre}</p>`).join('')
+              : '<p>No hay equipos</p>'
+          }
+
+          <h4>Evidencias</h4>
+          ${
+            evidencias.length > 0
+              ? evidencias.map(e => `<img src="${e.url_image}" style="width:300px;margin:5px;" />`).join('')
+              : '<p>No hay evidencias</p>'
+          }
 
           <hr/>
         </div>
       `;
     });
-
     htmlContent += `</body></html>`;
 
     const blob = new Blob(["\uFEFF" + htmlContent], {
@@ -151,49 +227,71 @@ export function ReportsPage() {
   const getFilteredServices = () => {
     const now = new Date();
 
-    switch (reportType) {
-      case 'daily':
-        return services.filter(s => {
-          const date = new Date(s.startDate);
-          return date.toDateString() === now.toDateString();
-        });
-
-      case 'weekly':
-        return services.filter(s => {
-          const date = new Date(s.startDate);
-          const weekAgo = new Date();
-          weekAgo.setDate(now.getDate() - 7);
-          return date >= weekAgo;
-        });
-
-      case 'range':
-        return services.filter(s => {
-          const date = new Date(s.startDate);
-          return (
-            (!dateRange.start || date >= new Date(dateRange.start)) &&
-            (!dateRange.end || date <= new Date(dateRange.end))
-          );
-        });
-
-      case 'accumulated':
-        return services;
-
-      default:
-        return selectedService ? [selectedService] : [];
+    return services.filter(s => {
+      const rawDate = s.startDate || s.fecha_inicio || s.createdAt;
+    if (!rawDate) {
+      return true;
     }
+
+      const date = new Date(rawDate);
+
+    if (isNaN(date.getTime())) {
+      return true;
+    }
+      
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      const serviceDate = new Date(date);
+      serviceDate.setHours(0,0,0,0);
+
+      let matchesDate = true;
+
+      if (reportType === 'daily') {
+        matchesDate =
+          serviceDate.getTime() === today.getTime();
+      }
+
+      if (reportType === 'weekly') {
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+
+        matchesDate =
+          serviceDate >= weekAgo && serviceDate <= today;
+      }
+
+      if (reportType === 'range') {
+        const start = dateRange.start ? new Date(dateRange.start) : null;
+        const end = dateRange.end ? new Date(dateRange.end) : null;
+
+        if (start) start.setHours(0,0,0,0);
+        if (end) end.setHours(0,0,0,0);
+
+        matchesDate =
+          (!start || serviceDate >= start) &&
+          (!end || serviceDate <= end);
+      }
+
+      if (reportType === 'service') {
+        matchesDate = selectedService
+          ? String(s.id) === String(selectedService.id)
+          : false;
+      }
+
+      const matchesTechnician =
+        !technicianFilter ||
+        (
+          s.nombre_personal ||
+          s.assignedTechnician ||
+          ''
+        ).toLowerCase().includes(technicianFilter.toLowerCase());
+
+      return matchesDate && matchesTechnician;
+    });
   };
 
   const filteredServices = getFilteredServices();
-
-  const stats = {
-    totalServices: services.length,
-    pending: services.filter(s => s.status === 'pending').length,
-    inProgress: services.filter(s => s.status === 'in-progress').length,
-    completed: services.filter(s => s.status === 'completed').length,
-    preventive: services.filter(s => s.type === 'preventive').length,
-    corrective: services.filter(s => s.type === 'corrective').length,
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -219,29 +317,77 @@ export function ReportsPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <div>
               <p className="text-sm text-gray-600">Total Servicios</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalServices}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboard?.resumen?.pendientes + dashboard?.resumen?.en_progreso + dashboard?.resumen?.completados || 0}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Pendientes</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              <p className="text-2xl font-bold text-yellow-600">{dashboard?.resumen?.pendientes}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">En Progreso</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
+              <p className="text-2xl font-bold text-blue-600">{dashboard?.resumen?.en_progreso}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Completados</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+              <p className="text-2xl font-bold text-green-600">{dashboard?.resumen?.completados}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Preventivos</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.preventive}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {resumenTipo.find(r => r.tipo?.toLowerCase().includes('prevent'))?.total ?? 0}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Correctivos</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.corrective}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {resumenTipo.find(r => r.tipo?.toLowerCase().includes('repar'))?.total ?? 0}
+              </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ranking de Técnicos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ranking.length === 0 ? (
+            <p className="text-sm text-gray-500">Sin datos</p>
+          ) : (
+            ranking.map((p) => (
+              <div key={p.id} className="flex justify-between border-b py-2">
+                <span>{p.nombre}</span>
+                <span>{p.servicios_completados} servicios</span>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Equipos en mantenimiento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {mantenimientos.filter(u =>
+                u.status_mantenimiento &&
+                !u.status_mantenimiento.toLowerCase().includes('día')
+              ).length === 0 ? (
+              <p className="text-sm text-gray-500">Sin mantenimientos pendientes</p>
+            ) : (
+              mantenimientos
+                .filter(u =>
+                  u.status_mantenimiento &&
+                  !u.status_mantenimiento.toLowerCase().includes('día')
+                )
+                .map((u) => (
+                  <div key={u.id} className="border-b py-2">
+                    <p>{u.tipo_utensilio || u.nombre || 'Sin nombre'}</p>
+                    <p className="text-sm text-gray-500">
+                      {u.status_mantenimiento || 'Sin estado'}
+                    </p>
+                  </div>
+                ))
+            )}
         </CardContent>
       </Card>
 
@@ -275,40 +421,6 @@ export function ReportsPage() {
           {/* DERECHA */}
           <div className="flex items-center gap-2">
 
-            {reportType !== 'service' && (
-              <Button
-                onClick={() => {
-                  if (reportType === 'range') {
-                    if (!dateRange.start || !dateRange.end) {
-                      toast.error('Selecciona ambas fechas');
-                      return;
-                    }
-
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const startDate = new Date(dateRange.start);
-                    startDate.setHours(0, 0, 0, 0);
-                    const endDate = new Date(dateRange.end);
-                    endDate.setHours(0, 0, 0, 0);
-
-                    if (endDate < startDate) {
-                      toast.error('La fecha de fin no puede ser anterior a la fecha de inicio');
-                      return;
-                    }
-                  }
-
-                  setIsGenerated(true);
-                  if (getFilteredServices().length === 0) {
-                    toast.error('No hay servicios en este rango');
-                    return;
-                  }
-                  toast.success('Reporte generado');
-                }}
-              >
-                Generar
-              </Button>
-            )}
-
             <Select
               value={reportType}
               onValueChange={(value) => {
@@ -333,6 +445,24 @@ export function ReportsPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
+            {reportType !== 'service' && (
+                <div>
+                  <label className="text-sm text-gray-600">Filtrar por técnico</label>
+                </div>
+              )}
+              <input
+                list="technicians"
+                className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
+                placeholder="Selecciona técnico..."
+                value={technicianFilter}
+                onChange={(e) => setTechnicianFilter(e.target.value)}
+              />
+
+              <datalist id="technicians">
+                {uniqueTechnicians.map((t, i) => (
+                  <option key={i} value={t} />
+                ))}
+              </datalist>
             {reportType === 'range' && (
               <div className="flex flex-col sm:flex-row gap-3">
 
@@ -371,7 +501,6 @@ export function ReportsPage() {
                     }}
                   />
                 </div>
-
               </div>
             )}
             {reportType === 'service' && (
@@ -389,55 +518,49 @@ export function ReportsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {services.map((service) => (
-                        <SelectItem key={service.id} value={service.id}>
-                          #{service.id} - {service.description || service.requesterName} 
-                          ({formatDate(service.startDate)})
+                        <SelectItem key={service.id} value={String(service.id)}>
+                          {service.nombre_servicio || service.name || `Servicio #${service.id}`}
+                          {' • '}
+                          {formatDate(service.fecha_inicio)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedService && (
+                    <div className="text-sm text-gray-600 mt-2">
+                      {selectedService.nombre_personal || 'Sin técnico'} •{' '}
+                      {selectedService.requesterArea || selectedService.nombre_area || 'Sin área'}
+                    </div>
+                  )}
                 </div>
-
-                <Button
-                  onClick={() => {
-                    if (!selectedService) {
-                      toast.error('Selecciona un servicio primero');
-                      return;
-                    }
-                    setIsGenerated(true);
-                    toast.success('Reporte generado');
-                  }}
-                >
-                  Generar
-                </Button>
               </div>
             )}
-            {!isGenerated && reportType === 'service' && (
+            {reportType === 'service' && !selectedService && (
               <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
                 <p className="text-gray-500">
-                  Selecciona un servicio y genera el reporte para visualizar la información
+                  Selecciona un servicio para ver el reporte
                 </p>
               </div>
             )}
             <div className="flex gap-2">
-              <Button onClick={handleGeneratePDF} disabled={!isGenerated}>
+              <Button onClick={handleGeneratePDF}>
                 <Download className="mr-2 h-4 w-4" />
                 Imprimir / Guardar PDF
               </Button>
 
-              <Button onClick={handleGenerateExcel} variant="outline" disabled={!isGenerated}>
+              <Button onClick={handleGenerateExcel} variant="outline">
                 <Download className="mr-2 h-4 w-4" />
                 Exportar Excel
               </Button>
             </div>
           </div>
 
-          {isGenerated && reportType === 'service' && selectedService && (
+          {reportType === 'service' && serviceData && (
             <div className="print-area border rounded-xl p-8 space-y-8 bg-white shadow-sm print:border-0">
               {/* Report Header */}
               <div className="text-center border-b pb-6">
                 <h2 className="text-2xl font-bold text-gray-900">REPORTE DE SERVICIO</h2>
-                <p className="text-gray-600 mt-2">Sistema de Gestión de Taller</p>
+                <p className="text-gray-600 mt-2">Agenda de Carpintería Unison</p>
                 <p className="text-sm text-gray-500 mt-1">
                   Generado el {new Date().toLocaleDateString('es-ES')}
                 </p>
@@ -449,36 +572,41 @@ export function ReportsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">ID de Servicio</p>
-                    <p className="font-medium">{selectedService.id}</p>
+                    <p className="font-medium">
+                      {serviceData.nombre_servicio || serviceData.name || `Servicio #${serviceData.id}`}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Tipo</p>
-                    <p className="font-medium">{getTypeLabel(selectedService.type)}</p>
+                    <p className="font-medium">{getTypeLabel(
+                      serviceData.tipo_hs_servicio?.toLowerCase().includes('prevent')
+                        ? 'preventive'
+                        : 'corrective'
+                    )}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Estado</p>
-                    <p className="font-medium">{getStatusLabel(selectedService.status)}</p>
+                    <p className="font-medium">{getStatusLabel(
+                      serviceData.status_final === 'Completado'
+                        ? 'completed'
+                        : serviceData.status_final === 'Pendiente'
+                        ? 'pending'
+                        : 'in-progress'
+                    )}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Técnico Asignado</p>
-                    <p className="font-medium">{selectedService.assignedTechnician || 'No asignado'}</p>
+                    <p className="font-medium">{serviceData.nombre_personal || 'No asignado'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Fecha de Inicio</p>
-                    <p className="font-medium">{formatDate(selectedService.startDate)}</p>
+                    <p className="font-medium">{formatDate(serviceData.fecha_inicio)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Fecha de Fin</p>
-                    <p className="font-medium">{formatDate(selectedService.endDate)}</p>
+                    <p className="font-medium">{formatDate(serviceData.fecha_fin)}</p>
                   </div>
                 </div>
-
-                {selectedService.description && (
-                  <div>
-                    <p className="text-sm text-gray-600">Descripción</p>
-                    <p className="font-medium">{selectedService.description}</p>
-                  </div>
-                )}
               </div>
 
               <Separator />
@@ -488,100 +616,101 @@ export function ReportsPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Información del Solicitante</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600">Nombre</p>
-                    <p className="font-medium">{selectedService.requesterName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Área</p>
-                    <p className="font-medium">{selectedService.requesterArea}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Teléfono</p>
-                    <p className="font-medium">{selectedService.requesterPhone}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Email</p>
-                    <p className="font-medium">{selectedService.requesterEmail}</p>
+                      <p className="text-sm text-gray-600">Nombre</p>
+                      <p className="font-medium">
+                        {serviceData.requesterName || 'No disponible'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-600">Área</p>
+                      <p className="font-medium">
+                        {serviceData.requesterArea || serviceData.nombre_area || 'No disponible'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-600">Teléfono</p>
+                      <p className="font-medium">
+                        {serviceData.requesterPhone || 'No disponible'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-600">Email</p>
+                      <p className="font-medium">
+                        {serviceData.requesterEmail || 'No disponible'}
+                      </p>
                   </div>
                 </div>
               </div>
 
               <Separator />
 
-              {/* Materials */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Materiales Utilizados</h3>
-                {selectedService.materials?.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Material</th>
-                          <th className="px-4 py-2 text-right text-sm font-medium text-gray-700">Cantidad</th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Unidad</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {selectedService.materials?.map((material, index) => (
-                          <tr key={index}>
-                            <td className="px-4 py-2">{material.name}</td>
-                            <td className="px-4 py-2 text-right">{material.quantity}</td>
-                            <td className="px-4 py-2">{material.unit}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Detalles del Servicio
+                  </h3>
+
+                  {/* Observaciones */}
+                  <div>
+                    <p className="text-sm text-gray-600">Observaciones</p>
+                    <p className="font-medium">
+                      {seguimiento?.observaciones || 'Sin observaciones'}
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">No se registraron materiales</p>
-                )}
-              </div>
 
-              <Separator />
-
-              {/* Tools */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Herramientas Asignadas</h3>
-                {selectedService.tools?.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-1">
-                    {selectedService.tools?.map((tool, index) => (
-                      <li key={index} className="text-gray-700">{tool}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 text-sm">No se registraron herramientas</p>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Evidence */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Evidencias Fotográficas</h3>
-                {selectedService.evidenceImages?.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {selectedService.evidenceImages?.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`Evidencia ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border"
-                      />
-                    ))}
+                  {/* Descripción */}
+                  <div>
+                    <p className="text-sm text-gray-600">Descripción</p>
+                    <p className="font-medium">
+                      {serviceData.description || serviceData.descripcion || 'Sin descripción'}
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-gray-500 text-sm">No se cargaron evidencias</p>
-                )}
-              </div>
+
+                  {/* Equipos */}
+                  <div>
+                    <p className="text-sm text-gray-600">Equipos utilizados</p>
+
+                    {utensilios.length > 0 ? (
+                      utensilios.map((u: any) => (
+                        <p key={u.id} className="font-medium">
+                          {u.tipo_utensilio || u.nombre || 'Sin nombre'}
+                        </p>
+                      ))
+                    ) : (
+                      <p>No hay equipos asignados</p>
+                    )}
+                  </div>
+
+                  {/* Evidencias GRANDES 🔥 */}
+                  <div>
+                    <p className="text-sm text-gray-600">Evidencias</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      {evidencias.length > 0 ? (
+                        evidencias.map((e, i) => (
+                          <img
+                            key={i}
+                            src={e.url_image}
+                            className="w-full h-auto object-contain rounded-lg shadow"
+                          />
+                        ))
+                      ) : (
+                        <p>No hay evidencias</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
               {/* Footer */}
               <div className="border-t pt-6 mt-8 text-center text-sm text-gray-600">
-                <p>Este reporte fue generado automáticamente por el Sistema de Gestión de Taller</p>
+                <p>Este reporte fue generado automáticamente por la Agenda de Carpintería Unison</p>
                 <p className="mt-1">Fecha de generación: {new Date().toLocaleString('es-ES')}</p>
               </div>
             </div>
           )}
-          {isGenerated && reportType !== 'service' && (
+          {reportType !== 'service' && (
             <div className="print-area border rounded-xl p-8 bg-white shadow-sm space-y-6 print:border-0">
 
               {/* HEADER */}
@@ -590,7 +719,7 @@ export function ReportsPage() {
                   REPORTE DE SERVICIOS
                 </h2>
                 <p className="text-gray-600 mt-2">
-                  Sistema de Gestión de Taller
+                  Agenda de Carpintería Unison
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
                   Generado el {new Date().toLocaleDateString('es-ES')}
@@ -604,19 +733,29 @@ export function ReportsPage() {
                 </h3>
 
                 <div className="space-y-4">
-                  {filteredServices.map(service => (
+                  {getFilteredServices().map(service => (
                     <div key={service.id} className="border rounded-lg p-4">
                       
-                      <p className="font-semibold">
-                        Servicio #{service.id}
+                      <p className="font-semibold text-blue-700">
+                        {service.nombre_servicio || service.name || `Servicio #${service.id}`}
                       </p>
 
-                      <p><strong>Tipo:</strong> {getTypeLabel(service.type)}</p>
-                      <p><strong>Estado:</strong> {getStatusLabel(service.status)}</p>
-                      <p><strong>Técnico:</strong> {service.assignedTechnician || 'No asignado'}</p>
-                      <p><strong>Fecha inicio:</strong> {formatDate(service.startDate)}</p>
-                      <p><strong>Fecha fin:</strong> {formatDate(service.endDate)}</p>
-                      <p><strong>Descripción:</strong> {service.description || 'N/A'}</p>
+                      <p><strong>Tipo:</strong> {getTypeLabel(
+                          (service.tipo_hs_servicio || service.type || '').toLowerCase().includes('prevent')
+                            ? 'preventive'
+                            : 'corrective'
+                        )}</p>
+                      <p><strong>Estado:</strong> {getStatusLabel(
+                          (service.status_final || service.status) === 'Completado'
+                            ? 'completed'
+                            : service.status_final === 'Pendiente'
+                            ? 'pending'
+                            : 'in-progress'
+                        )}</p>
+                      <p><strong>Técnico:</strong> {service.nombre_personal || 'No asignado'}</p>
+                      <p><strong>Fecha inicio:</strong> {formatDate(service.fecha_inicio)}</p>
+                      <p><strong>Fecha fin:</strong> {formatDate(service.fecha_fin)}</p>
+                      <p><strong>Descripción:</strong> {service.descripcion || service.description || 'N/A'}</p>
 
                       <div className="mt-2 text-sm text-gray-600">
                         {service.requesterName} • {service.requesterArea}

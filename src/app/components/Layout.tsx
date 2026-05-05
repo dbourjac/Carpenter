@@ -34,7 +34,7 @@ export function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Servicios', href: '/services', icon: ClipboardList },
-    { name: 'Equipos y Herramientas', href: '/equipment', icon: Wrench },
+    { name: 'Equipos y Utensilios', href: '/equipment', icon: Wrench },
     { name: 'Reportes', href: '/reports', icon: FileText },
     { name: 'Técnicos', href: '/technicians', icon: User },
     ...(user?.role === 'admin' ? [{ name: 'Usuarios', href: '/users', icon: UsersIcon }] : []),

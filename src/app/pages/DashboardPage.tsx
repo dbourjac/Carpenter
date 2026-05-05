@@ -253,7 +253,7 @@ export function DashboardPage() {
                               <span className="text-red-500 text-sm">●</span>
                             )}
                             <span className="font-semibold text-gray-900 truncate">
-                              {service.name}
+                              {service.nombre_servicio || service.name}
                             </span>
                           </div>
 

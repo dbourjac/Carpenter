@@ -117,20 +117,25 @@ export function ServiceDetailPage() {
         const loadSeguimiento = async () => {
             try {
                 const data = await seguimientoApi.getByServiceId(id!);
+
                 const item = Array.isArray(data) ? data[0] : data;
 
-                setSeguimientoId(item?.id ? String(item.id) : null);
+                if (!item) {
+                console.warn('No hay seguimiento para este servicio');
+                return;
+                }
 
-                setObservations(item?.observaciones ?? '');
+                setSeguimientoId(String(item.id));
+                setObservations(item.observaciones || '');
 
                 if (item?.fecha_fin_estimada) {
-                    setEstimatedCompletion(item.fecha_fin_estimada);
+                setEstimatedCompletion(item.fecha_fin_estimada);
                 }
 
             } catch (error) {
                 console.error('Error cargando seguimiento');
             }
-        };
+            };
         loadSeguimiento();
     }, [id]);
 
@@ -152,37 +157,51 @@ export function ServiceDetailPage() {
 
     const handleUpdateBasicInfo = async () => {
         try {
-            let updated;
-
-            if (status === 'completed' && service.status !== 'completed') {
-            updated = await serviceApi.completar(service.id, new Date().toISOString().split('T')[0]);
-            } else if (status !== service.status) {
-            updated = await serviceApi.cambiarStatus(service.id, status);
-            } else if (priority !== service.priority) {
-            updated = await serviceApi.cambiarPrioridad(service.id, priority);
-            } else {
-            updated = await serviceApi.update(service.id, {
-                name: service.name,
-                type: service.type,
-                description: service.description,
-                startDate: service.startDate,
-                endDate: service.endDate,
-                solicitanteId: service.solicitanteId,
-                status,
-                priority,
-                assignedTechnician: assignedTechnician || undefined,
-                location: location || undefined,
-                estimatedCompletionDate: estimatedCompletion || undefined,
+            if (seguimientoId) {
+            await seguimientoApi.update(seguimientoId, {
+                fecha_fin_estimada: estimatedCompletion || null,
+                observaciones: observations || null,
+                personal_id: assignedTechnician || null,
+                ubicacion: location || null
             });
             }
+            if (status === 'completed' && service.status !== 'completed') {
+            await serviceApi.completar(
+                service.id,
+                new Date().toISOString().split('T')[0]
+            );
+            }
+            await serviceApi.update(service.id, {
+            name: service.name,
+            type: service.type,
+            description: service.description,
+            startDate: service.startDate,
+            endDate: service.endDate,
+            solicitanteId: service.solicitanteId,
+            status,
+            priority,
+            assignedTechnician: assignedTechnician || null,
+            location: location || null,
+            estimatedCompletionDate: estimatedCompletion || null,
+            });
 
-            setService(updated);
+            const refreshed = await serviceApi.getById(service.id);
+            const seguimientoData = await seguimientoApi.getByServiceId(service.id);
+            const item = Array.isArray(seguimientoData) ? seguimientoData[0] : seguimientoData;
+
+            if (item?.fecha_fin_estimada) {
+            setEstimatedCompletion(item.fecha_fin_estimada);
+            }
+            setService(refreshed);
+            setStatus(refreshed.status);
+            setPriority(refreshed.priority);
+
             toast.success('Información actualizada correctamente');
 
         } catch (error) {
             toast.error('Error al actualizar');
         }
-    };
+        };
 
     const handleUpdateObservations = async () => {
         if (!seguimientoId) {
@@ -190,7 +209,9 @@ export function ServiceDetailPage() {
             return;
         }
         try {
-            await seguimientoApi.update(seguimientoId, observations);
+            await seguimientoApi.updateObservaciones(seguimientoId, {
+                observaciones: observations
+            });
             toast.success('Observaciones actualizadas');
         } catch (error) {
             toast.error('Error al actualizar observaciones');
@@ -324,13 +345,34 @@ export function ServiceDetailPage() {
                 </Button>
                 <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap">
-                        <h1 className="text-3xl font-bold text-gray-900">{service.name}</h1>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            {service.nombre_servicio || service.name}
+                        </h1>
                         <Badge className={`${getStatusColor(service.status)} border`}>
                             {getStatusLabel(service.status)}
                         </Badge>
                         <Badge className={`${getPriorityColor(service.priority)} border`}>
                             {getPriorityLabel(service.priority)}
                         </Badge>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                                const confirmDelete = window.confirm('¿Eliminar este servicio?');
+
+                                if (!confirmDelete) return;
+
+                                try {
+                                await serviceApi.remove(service.id);
+                                toast.success('Servicio eliminado');
+                                navigate('/services');
+                                } catch (error) {
+                                toast.error('Error al eliminar servicio');
+                                }
+                            }}
+                            >
+                            Eliminar
+                        </Button>
                     </div>
                     <p className="text-gray-600 mt-1">Detalles completos del servicio</p>
                 </div>
@@ -371,7 +413,17 @@ export function ServiceDetailPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Fecha de Fin</p>
-                                    <p className="font-semibold text-gray-900">{formatDate(service.endDate)}</p>
+                                    <p className="font-semibold text-gray-900">
+                                        {service.status === 'completed'
+                                            ? formatDate(service.endDate)
+                                            : 'Aún no finalizado'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-600 mb-1">Fecha Estimada Finalización</p>
+                                    <p className="font-semibold text-gray-900">
+                                        {estimatedCompletion ? formatDate(estimatedCompletion) : 'No definida'}
+                                    </p>
                                 </div>
                             </div>
                             <Separator/>
@@ -660,8 +712,15 @@ export function ServiceDetailPage() {
                                 <Label htmlFor="estimatedCompletion" className="flex items-center gap-2">
                                     <Calendar className="h-4 w-4"/>Fecha Estimada Finalización
                                 </Label>
-                                <Input id="estimatedCompletion" type="date" value={estimatedCompletion}
-                                       onChange={(e) => setEstimatedCompletion(e.target.value)}/>
+                                <Input
+                                    id="estimatedCompletion"
+                                    type="date"
+                                    value={estimatedCompletion || ''}
+                                    onChange={(e) => {
+                                        console.log('📅 nueva fecha estimada:', e.target.value);
+                                        setEstimatedCompletion(e.target.value);
+                                    }}
+                                    />
                             </div>
                             <Button onClick={handleUpdateBasicInfo}
                                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">

@@ -26,10 +26,13 @@ export function ServicesListPage() {
   const [personal, setPersonal] = useState<any[]>([]);
 
   const filteredServices = services
-    .filter(service =>
-      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.requesterName.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter(service => {
+      const name = (service.name || service.nombre_servicio || '').toLowerCase();
+      const requester = (service.requesterName || '').toLowerCase();
+      const query = searchQuery.toLowerCase();
+
+      return name.includes(query) || requester.includes(query);
+    })
     .filter(service => statusFilter === 'all' || service.status === statusFilter)
     .filter(service => priorityFilter === 'all' || service.priority === priorityFilter)
     .filter(service => typeFilter === 'all' || service.type === typeFilter);
@@ -199,7 +202,7 @@ export function ServicesListPage() {
                     <div className="flex-1 space-y-3">
                       <div className="flex items-start gap-3 flex-wrap">
                         <h3 className="font-semibold text-lg text-gray-900">
-                          {service.name}
+                          {service.name || service.nombre_servicio || `Servicio #${service.id}`}
                         </h3>
                         <div className="flex gap-2 flex-wrap">
                           <Badge className={`${getStatusColor(service.status)} border`}>

@@ -36,6 +36,8 @@ export function ServiceCreatePage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [technicians, setTechnicians] = useState<any[]>([]);
+  const [technicianSearch, setTechnicianSearch] = useState('');
+  const [filteredTechnicians, setFilteredTechnicians] = useState<any[]>([]);
     useEffect(() => {
       const load = async () => {
         try {
@@ -60,6 +62,22 @@ export function ServiceCreatePage() {
       };
       loadEquipment();
     }, []);
+    useEffect(() => {
+      if (!technicianSearch.trim()) {
+        setFilteredTechnicians([]);
+        return;
+      }
+
+      const filtered = technicians
+        .filter(t =>
+          `${t.nombre || t.name} ${t.id}`
+            .toLowerCase()
+            .includes(technicianSearch.toLowerCase())
+        )
+        .slice(0, 5);
+
+      setFilteredTechnicians(filtered);
+    }, [technicianSearch, technicians]);
 
   const [newEquipment, setNewEquipment] = useState('');
   const [availableEquipment, setAvailableEquipment] = useState<{ id: string; name: string; available: boolean }[]>([]);
@@ -79,8 +97,11 @@ export function ServiceCreatePage() {
     if (!formData.assignedTechnician?.trim()) {
       newErrors.assignedTechnician = 'El técnico asignado es requerido';
     }
-    if (!formData.endDate) newErrors.endDate = 'La fecha de fin es requerida';
-    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+    if (
+      formData.endDate &&
+      formData.startDate &&
+      formData.endDate < formData.startDate
+    ) {
       newErrors.endDate = 'La fecha de fin debe ser posterior a la de inicio';
     }
     if (formData.estimatedCompletionDate && isDateBeforeToday(formData.estimatedCompletionDate)) {
@@ -111,7 +132,7 @@ export function ServiceCreatePage() {
         setNewEquipment('');
       };
 
-    const handleRemoveEquipment = (_: string, index: number) => {
+    const handleRemoveEquipment = (_: number, index: number) => {
         setFormData(prev => ({
           ...prev,
           equipment: prev.equipment.filter((_, i) => i !== index)
@@ -144,7 +165,7 @@ export function ServiceCreatePage() {
           status: 'pending',
 
           startDate: formData.startDate,
-          endDate: formData.endDate,
+          endDate: null,
           estimatedCompletionDate: formData.estimatedCompletionDate || null,
 
           solicitanteId: requester.id,
@@ -152,7 +173,7 @@ export function ServiceCreatePage() {
           location: formData.location || null,
 
           description: formData.description || null,
-          observations: formData.observations || null,
+          observations: null,
         });
 
         if (formData.equipment && formData.equipment.length > 0) {
@@ -193,7 +214,8 @@ export function ServiceCreatePage() {
         navigate(`/services/${newService.id}`);
 
       } catch (error: any) {
-        console.error('ERROR BACK REAL:', error.response?.data || error.message);
+        console.error('🔥 ERROR COMPLETO:', error);
+        console.error('🔥 RESPONSE:', error?.response?.data);
         toast.error('Error al crear servicio');
       }
     };
@@ -309,18 +331,6 @@ export function ServiceCreatePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="endDate">Fecha de Fin *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => updateField('endDate', e.target.value)}
-                  className={`h-11 ${errors.endDate ? 'border-red-500' : ''}`}
-                />
-                {errors.endDate && <p className="text-sm text-red-600">{errors.endDate}</p>}
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="estimatedCompletionDate">Fecha Estimada Finalización</Label>
                 <Input
                   id="estimatedCompletionDate"
@@ -420,40 +430,37 @@ export function ServiceCreatePage() {
           </CardHeader>
           <CardContent className="pt-6 space-y-5">
             <div className="space-y-2">
-              <Select
-                value={formData.assignedTechnician}
-                onValueChange={(value) => updateField('assignedTechnician', value)}
-              >
-                <SelectTrigger
-                  id="assignedTechnician"
+                <Label>Técnico asignado *</Label>
+
+                <Input
+                  placeholder="Buscar técnico por nombre o ID..."
+                  value={technicianSearch}
+                  onChange={(e) => setTechnicianSearch(e.target.value)}
                   className={`h-11 ${errors.assignedTechnician ? 'border-red-500' : ''}`}
-                >
-                  <SelectValue placeholder="Selecciona un técnico" />
-                </SelectTrigger>
+                />
 
-                <SelectContent>
-                  {technicians.map((tech) => (
-                    <SelectItem key={tech.id} value={String(tech.id)}>
-                      {tech.nombre || tech.name} — {tech.especialidad || 'Sin especialidad'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.assignedTechnician && (
-                <p className="text-sm text-red-600">{errors.assignedTechnician}</p>
-              )}
-            </div>
+                {filteredTechnicians.length > 0 && (
+                  <div className="border rounded-lg bg-white shadow-sm max-h-40 overflow-y-auto">
+                    {filteredTechnicians.map((tech) => (
+                      <div
+                        key={tech.id}
+                        className="p-2 hover:bg-blue-50 cursor-pointer text-sm"
+                        onClick={() => {
+                          updateField('assignedTechnician', String(tech.id));
+                          setTechnicianSearch(tech.nombre || tech.name);
+                          setFilteredTechnicians([]);
+                        }}
+                      >
+                        {tech.nombre || tech.name} — {tech.especialidad || 'Sin especialidad'}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-            <div className="space-y-2">
-              <Label htmlFor="observations">Observaciones Iniciales</Label>
-              <Textarea
-                id="observations"
-                placeholder="Notas o detalles adicionales sobre el servicio..."
-                value={formData.observations}
-                onChange={(e) => updateField('observations', e.target.value)}
-                rows={3}
-              />
-            </div>
+                {errors.assignedTechnician && (
+                  <p className="text-sm text-red-600">{errors.assignedTechnician}</p>
+                )}
+              </div>
           </CardContent>
         </Card>
 

@@ -14,6 +14,12 @@ export interface User {
 
 export interface ServiceRequest {
   id: string;
+  tipo_hs_servicio?: string;
+  status_final?: string;
+  nombre_personal?: string;
+  nombre_area?: string;
+  descripcion?: string;
+  nombre_servicio?: string;
   name: string;
   type: ServiceType;
   status: ServiceStatus;
