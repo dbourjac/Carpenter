@@ -4,6 +4,20 @@ import { EquipmentItem, ServiceRequest, ServiceStatus, ServiceType } from './typ
 const rawApiUrl =
   (import.meta as any).env?.VITE_API_URL as string | undefined;
 const API_URL = rawApiUrl || 'http://localhost:3000';
+const originalFetch = window.fetch;
+
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  let url = typeof input === 'string' ? input : input.toString();
+
+  if (url.includes('http://localhost:3000')) {
+    url = url.replace('http://localhost:3000', API_URL);
+  }
+
+  return originalFetch(url, {
+    ...init,
+    credentials: 'include', // importante para sesiones
+  });
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -234,7 +248,7 @@ api.interceptors.request.use((config) => {
 
 export const authApi = {
   login: async (email: string, password: string) => {
-    const response = await api.post('/api/auth/login', {
+    const response = await api.post('/api/login', {
       nombre_usuario: email,
       password
     });
