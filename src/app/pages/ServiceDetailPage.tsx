@@ -100,7 +100,9 @@ export function ServiceDetailPage() {
     useEffect(() => {
         const loadServiceEquipment = async () => {
             try {
-            const res = await fetch(`http://localhost:3000/api/servicios/${id}/utensilios`);
+            const res = await fetch(`/api/servicios/${id}/utensilios`, {
+                credentials: 'include'
+            });
             const data = await res.json();
 
             setServiceEquipment(Array.isArray(data) ? data : []);
@@ -246,7 +248,9 @@ export function ServiceDetailPage() {
                         solicitante_id: service.solicitanteId || null,
                         operador_id: assignedTechnician || null
                     });
-            const res = await fetch(`http://localhost:3000/api/servicios/${service.id}/utensilios`);
+            const res = await fetch(`/api/servicios/${service.id}/utensilios`, {
+                credentials: 'include'
+            });
             const data = await res.json();
             setServiceEquipment(Array.isArray(data) ? data : []);
 
@@ -277,7 +281,9 @@ export function ServiceDetailPage() {
                 });
             }
 
-            const res = await fetch(`http://localhost:3000/api/servicios/${service!.id}/utensilios`);
+            const res = await fetch(`/api/servicios/${service!.id}/utensilios`, {
+                credentials: 'include'
+            });
             const data = await res.json();
             setServiceEquipment(Array.isArray(data) ? data : []);
 

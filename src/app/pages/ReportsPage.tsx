@@ -111,7 +111,9 @@ export function ReportsPage() {
         const ev = await serviceApi.getEvidencias(selectedServiceId);
         setEvidencias(Array.isArray(ev) ? ev : []);
 
-        const res = await fetch(`http://localhost:3000/api/servicios/${selectedServiceId}/utensilios`);
+        const res = await fetch(`/api/servicios/${selectedServiceId}/utensilios`, {
+          credentials: 'include'
+        });
         const data = await res.json();
         setUtensilios(Array.isArray(data) ? data : []);
 
