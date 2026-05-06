@@ -721,7 +721,7 @@ export function EquipmentPage() {
                       <div className="mb-3 p-2 bg-blue-50 rounded-lg">
                         <p className="text-xs text-gray-600 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          Próx. mantenimiento: {parseMaintenanceDate(item.nextMaintenanceDate).toLocaleString('es-ES')}
+                          Próx. mantenimiento: {parseMaintenanceDate(item.nextMaintenanceDate).toLocaleDateString('es-ES')}
                         </p>
                         {item.status_mantenimiento === 'En proceso' && (
                           <p className="text-xs text-red-700 font-medium mt-1">
