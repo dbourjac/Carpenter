@@ -667,12 +667,13 @@ export const serviceApi = {
       personal_id: datos.personal_id || null,
       solicitante_id: datos.solicitante_id || null
     });
-    return normalizeService(response.data);
+
+    return response.data;
   },
 
   removeUtensilio: async (id: string, utensilio_id: string | number) => {
     const response = await api.delete(`/api/servicios/${id}/utensilios/${utensilio_id}`);
-    return normalizeService(response.data);
+    return response.data;
   },
 
   addEvidencia: async (id: string, datos: { imagen: string; tipo?: 'inicio' | 'fin' }) => {
