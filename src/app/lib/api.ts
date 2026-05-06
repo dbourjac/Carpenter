@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { EquipmentItem, ServiceRequest, ServiceStatus, ServiceType } from './types';
 
-const API_URL = '/api';
+const API_URL = 'https://carpenter-back.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
