@@ -676,6 +676,22 @@ export const serviceApi = {
     return response.data;
   },
 
+  getUtensilios: async (id: string) => {
+    const response = await api.get(`/api/servicios/${id}/utensilios`);
+
+    const data = response.data;
+
+    const utensilios = Array.isArray(data)
+      ? data
+      : Array.isArray(data.utensilios)
+      ? data.utensilios
+      : Array.isArray(data.data)
+      ? data.data
+      : [];
+
+    return utensilios.map(normalizeServiceEquipment);
+  },
+
   addEvidencia: async (id: string, datos: { imagen: string; tipo?: 'inicio' | 'fin' }) => {
     const response = await api.post(`/api/servicios/${id}/evidencias`, {
       image: datos.imagen,
