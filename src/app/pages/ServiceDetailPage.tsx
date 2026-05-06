@@ -282,11 +282,17 @@ export function ServiceDetailPage() {
             : [];
 
             setServiceEquipment(utensilios);
+            const updatedEquipment = await utensiliosApi.getAll();
 
-            const refreshed = await serviceApi.getById(service.id);
-            setService(refreshed);
+            setAvailableEquipment(
+            Array.isArray(updatedEquipment)
+                ? updatedEquipment
+                : []
+            );
+
             setNewEquipment('');
-            toast.success('Equipo agregado');
+
+            toast.success('Equipo agregado correctamente');
         } catch (error) {
             toast.error('Error al agregar equipo');
         }
@@ -466,7 +472,11 @@ export function ServiceDetailPage() {
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Fecha Estimada Finalización</p>
                                     <p className="font-semibold text-gray-900">
-                                        {estimatedCompletion ? formatDate(estimatedCompletion) : 'No definida'}
+                                        {estimatedCompletion
+                                            ? new Date(
+                                                estimatedCompletion + 'T12:00:00'
+                                                ).toLocaleDateString('es-MX')
+                                            : 'No definida'}
                                     </p>
                                 </div>
                             </div>
