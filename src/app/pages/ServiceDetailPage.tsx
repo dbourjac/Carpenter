@@ -110,22 +110,9 @@ export function ServiceDetailPage() {
     useEffect(() => {
         const loadServiceEquipment = async () => {
             try {
-            const res = await fetch(`/api/servicios/${id}/utensilios`, {
-                credentials: 'include'
-            });
-            const data = await res.json();
+            const utensilios = await serviceApi.getUtensilios(id!);
 
-            const utensilios = Array.isArray(data)
-            ? data
-            : Array.isArray(data.utensilios)
-            ? data.utensilios
-            : Array.isArray(data.data)
-            ? data.data
-            : [];
-
-            setServiceEquipment(
-                utensilios.map(normalizeServiceEquipment)
-            );
+            setServiceEquipment(utensilios);
             } catch (error) {
             console.error('Error cargando utensilios del servicio');
             setServiceEquipment([]);
@@ -267,22 +254,9 @@ export function ServiceDetailPage() {
                     toast.error('Equipo no encontrado');
                     return;
                 }
-            const res = await fetch(`/api/servicios/${service.id}/utensilios`, {
-                credentials: 'include'
-            });
-            const data = await res.json();
+            const utensilios = await serviceApi.getUtensilios(service.id);
 
-            const utensilios = Array.isArray(data)
-            ? data
-            : Array.isArray(data.utensilios)
-            ? data.utensilios
-            : Array.isArray(data.data)
-            ? data.data
-            : [];
-
-            setServiceEquipment(
-                utensilios.map(normalizeServiceEquipment)
-                );
+            setServiceEquipment(utensilios);
             const updatedEquipment = await utensiliosApi.getAll();
 
             setAvailableEquipment(
@@ -310,22 +284,9 @@ export function ServiceDetailPage() {
                 console.warn('Equipo no encontrado');
             }
 
-            const res = await fetch(`/api/servicios/${service!.id}/utensilios`, {
-                credentials: 'include'
-            });
-            const data = await res.json();
+            const utensilios = await serviceApi.getUtensilios(service!.id);
 
-            const utensilios = Array.isArray(data)
-            ? data
-            : Array.isArray(data.utensilios)
-            ? data.utensilios
-            : Array.isArray(data.data)
-            ? data.data
-            : [];
-
-            setServiceEquipment(
-                utensilios.map(normalizeServiceEquipment)
-            );
+            setServiceEquipment(utensilios);
 
             toast.success('Equipo desasignado');
         } catch (error) {
