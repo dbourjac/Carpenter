@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: carpenter-front
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://carpenter-back.onrender.com/api/*
