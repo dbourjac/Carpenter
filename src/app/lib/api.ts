@@ -299,12 +299,26 @@ export const reportesApi = {
 
   getResumenTipo: async () => {
     const response = await api.get('/api/reportes/resumen-tipo');
-    return response.data;
+
+    const data = response.data;
+
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.resumen)) return data.resumen;
+
+    return [];
   },
 
   getDashboard: async () => {
     const response = await api.get('/api/reportes/dashboard');
-    return response.data;
+
+    const data = response.data;
+
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.dashboard)) return data.dashboard;
+
+    return data || {};
   },
 
   getActivos: async () => {
