@@ -1,23 +1,7 @@
 import axios from 'axios';
 import { EquipmentItem, ServiceRequest, ServiceStatus, ServiceType } from './types';
 
-const rawApiUrl =
-  (import.meta as any).env?.VITE_API_URL as string | undefined;
-const API_URL = rawApiUrl || 'http://localhost:3000';
-const originalFetch = window.fetch;
-
-window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-  let url = typeof input === 'string' ? input : input.toString();
-
-  if (url.includes('http://localhost:3000')) {
-    url = url.replace('http://localhost:3000', API_URL);
-  }
-
-  return originalFetch(url, {
-    ...init,
-    credentials: 'include', // importante para sesiones
-  });
-};
+const API_URL = '/api';
 
 const api = axios.create({
   baseURL: API_URL,
