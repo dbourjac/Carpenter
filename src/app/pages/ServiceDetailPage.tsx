@@ -9,7 +9,13 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '../
 import {Badge} from '../components/ui/badge';
 import {Separator} from '../components/ui/separator';
 import {Textarea} from '../components/ui/textarea';
-import { seguimientoApi, serviceApi, getPersonal, utensiliosApi } from '../lib/api';
+import {
+  seguimientoApi,
+  serviceApi,
+  getPersonal,
+  utensiliosApi,
+  normalizeServiceEquipment
+} from '../lib/api';
 import {getEquipment} from '../lib/storage';
 import {
     getStatusLabel,
@@ -117,7 +123,9 @@ export function ServiceDetailPage() {
             ? data.data
             : [];
 
-            setServiceEquipment(utensilios);
+            setServiceEquipment(
+                utensilios.map(normalizeServiceEquipment)
+            );
             } catch (error) {
             console.error('Error cargando utensilios del servicio');
             setServiceEquipment([]);
@@ -281,7 +289,9 @@ export function ServiceDetailPage() {
             ? data.data
             : [];
 
-            setServiceEquipment(utensilios);
+            setServiceEquipment(
+                utensilios.map(normalizeServiceEquipment)
+                );
             const updatedEquipment = await utensiliosApi.getAll();
 
             setAvailableEquipment(
@@ -329,7 +339,9 @@ export function ServiceDetailPage() {
             ? data.data
             : [];
 
-            setServiceEquipment(utensilios);
+            setServiceEquipment(
+                utensilios.map(normalizeServiceEquipment)
+            );
 
             toast.success('Equipo desasignado');
         } catch (error) {
@@ -472,11 +484,7 @@ export function ServiceDetailPage() {
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Fecha Estimada Finalización</p>
                                     <p className="font-semibold text-gray-900">
-                                        {estimatedCompletion
-                                            ? new Date(
-                                                estimatedCompletion + 'T12:00:00'
-                                                ).toLocaleDateString('es-MX')
-                                            : 'No definida'}
+                                        {estimatedCompletion || 'No definida'}
                                     </p>
                                 </div>
                             </div>
@@ -535,10 +543,14 @@ export function ServiceDetailPage() {
                                              className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2 h-2 bg-green-500 rounded-full"/>
-                                                <span className="font-medium text-gray-900">{item.tipo_utensilio || item.nombre || 'Sin nombre'}</span>
+                                                <span className="font-medium text-gray-900">{item.name || 'Sin nombre'}</span>
                                             </div>
                                             <Button variant="ghost" size="sm"
-                                                    onClick={() => handleRemoveEquipment(item.id)}>
+                                                    onClick={() =>
+                                                        handleRemoveEquipment(
+                                                            Number(item.utensilio_id || item.id)
+                                                        )
+                                                    }>
                                                 <X className="h-4 w-4 text-red-600"/>
                                             </Button>
                                         </div>
