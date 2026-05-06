@@ -261,21 +261,12 @@ export function ServiceDetailPage() {
                 });
                 const selectedItem = availableEquipment.find(
                     e => String(e.id) === String(newEquipment)
-                    );
+                );
 
-                    if (!selectedItem) {
+                if (!selectedItem) {
                     toast.error('Equipo no encontrado');
                     return;
-                    }
-
-                    await utensiliosApi.update(String(newEquipment), {
-                        name: selectedItem.name,
-                        type: selectedItem.type,
-                        available: false,
-
-                        solicitante_id: service.solicitanteId || null,
-                        operador_id: assignedTechnician || null
-                    });
+                }
             const res = await fetch(`/api/servicios/${service.id}/utensilios`, {
                 credentials: 'include'
             });
@@ -313,17 +304,10 @@ export function ServiceDetailPage() {
             await serviceApi.removeUtensilio(service!.id, utensilioId);
             const selectedItem = availableEquipment.find(
                 e => String(e.id) === String(utensilioId)
-                );
+            );
 
-                if (selectedItem) {
-                await utensiliosApi.update(String(utensilioId), {
-                    name: selectedItem.name,
-                    type: selectedItem.type,
-                    available: true,
-
-                    solicitante_id: null,
-                    operador_id: null
-                });
+            if (!selectedItem) {
+                console.warn('Equipo no encontrado');
             }
 
             const res = await fetch(`/api/servicios/${service!.id}/utensilios`, {
