@@ -11,6 +11,13 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  if (config.url?.startsWith('/api/')) {
+    config.url = config.url.replace('/api', '');
+  }
+  return config;
+});
+
 const normalizeServiceType = (value: unknown): ServiceType => {
   const raw = String(value ?? '').toLowerCase();
   if (raw.includes('prevent')) return 'preventive';
