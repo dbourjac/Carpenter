@@ -201,6 +201,26 @@ const normalizeEquipment = (row: any): EquipmentItem => {
   };
 };
 
+export const normalizeServiceEquipment = (row: any) => {
+  return {
+    id: String(row.id ?? ''),
+    utensilio_id: String(row.utensilio_id ?? row.id ?? ''),
+
+    name:
+      row.tipo_utensilio ??
+      row.nombre ??
+      'Sin nombre',
+
+    type:
+      row.clasificacion ??
+      'Equipo',
+
+    status:
+      row.status_utensilio ??
+      'Disponible',
+  };
+};
+
 const toBackendUtensilioType = (type?: EquipmentItem['type']) => {
   if (type === 'machinery') return 'Maquinaria';
   if (type === 'tool') return 'Herramienta';
