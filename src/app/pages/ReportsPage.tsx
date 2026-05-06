@@ -175,7 +175,11 @@ export function ReportsPage() {
           <p><b>Estado:</b> ${s.status_final}</p>
           <p><b>Técnico:</b> ${s.nombre_personal || 'No asignado'}</p>
           <p><b>Fecha inicio:</b> ${formatDate(s.fecha_inicio)}</p>
-          <p><b>Fecha fin:</b> ${formatDate(s.fecha_fin)}</p>
+          <p><b>Fecha fin:</b> ${
+            s.status_final === 'Completado'
+              ? formatDate(s.fecha_fin)
+              : 'No finalizado'
+          }</p>
 
           <h3>Solicitante</h3>
           <p>${s.requesterName || 'N/A'} - ${s.nombre_area || ''}</p>
@@ -363,33 +367,6 @@ export function ReportsPage() {
               </div>
             ))
           )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Equipos en mantenimiento</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {mantenimientos.filter(u =>
-                u.status_mantenimiento &&
-                !u.status_mantenimiento.toLowerCase().includes('día')
-              ).length === 0 ? (
-              <p className="text-sm text-gray-500">Sin mantenimientos pendientes</p>
-            ) : (
-              mantenimientos
-                .filter(u =>
-                  u.status_mantenimiento &&
-                  !u.status_mantenimiento.toLowerCase().includes('día')
-                )
-                .map((u) => (
-                  <div key={u.id} className="border-b py-2">
-                    <p>{u.tipo_utensilio || u.nombre || 'Sin nombre'}</p>
-                    <p className="text-sm text-gray-500">
-                      {u.status_mantenimiento || 'Sin estado'}
-                    </p>
-                  </div>
-                ))
-            )}
         </CardContent>
       </Card>
 
@@ -606,7 +583,11 @@ export function ReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Fecha de Fin</p>
-                    <p className="font-medium">{formatDate(serviceData.fecha_fin)}</p>
+                    <p className="font-medium">
+                      {serviceData.status_final === 'Completado'
+                        ? formatDate(serviceData.fecha_fin)
+                        : 'No finalizado'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -756,7 +737,12 @@ export function ReportsPage() {
                         )}</p>
                       <p><strong>Técnico:</strong> {service.nombre_personal || 'No asignado'}</p>
                       <p><strong>Fecha inicio:</strong> {formatDate(service.fecha_inicio)}</p>
-                      <p><strong>Fecha fin:</strong> {formatDate(service.fecha_fin)}</p>
+                      <p>
+                        <strong>Fecha fin:</strong>{' '}
+                        {service.status_final === 'Completado'
+                          ? formatDate(service.fecha_fin)
+                          : 'No finalizado'}
+                      </p>
                       <p><strong>Descripción:</strong> {service.descripcion || service.description || 'N/A'}</p>
 
                       <div className="mt-2 text-sm text-gray-600">

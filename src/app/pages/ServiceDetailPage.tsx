@@ -88,7 +88,11 @@ export function ServiceDetailPage() {
                 setPriority(data.priority);
                 setAssignedTechnician(String(data.assignedTechnician || ''));
                 setLocation(data.location || '');
-                setEstimatedCompletion(data.estimatedCompletionDate || '');
+                setEstimatedCompletion(
+                    data.estimatedCompletionDate
+                        ? data.estimatedCompletionDate.split('T')[0]
+                        : ''
+                );
             } catch (error) {
                 toast.error('Servicio no encontrado');
                 navigate('/services');
@@ -105,7 +109,15 @@ export function ServiceDetailPage() {
             });
             const data = await res.json();
 
-            setServiceEquipment(Array.isArray(data) ? data : []);
+            const utensilios = Array.isArray(data)
+            ? data
+            : Array.isArray(data.utensilios)
+            ? data.utensilios
+            : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+            setServiceEquipment(utensilios);
             } catch (error) {
             console.error('Error cargando utensilios del servicio');
             setServiceEquipment([]);
@@ -131,7 +143,11 @@ export function ServiceDetailPage() {
                 setObservations(item.observaciones || '');
 
                 if (item?.fecha_fin_estimada) {
-                setEstimatedCompletion(item.fecha_fin_estimada);
+                setEstimatedCompletion(
+                    item.fecha_fin_estimada
+                        ? item.fecha_fin_estimada.split('T')[0]
+                        : ''
+                );
                 }
 
             } catch (error) {
@@ -192,7 +208,11 @@ export function ServiceDetailPage() {
             const item = Array.isArray(seguimientoData) ? seguimientoData[0] : seguimientoData;
 
             if (item?.fecha_fin_estimada) {
-            setEstimatedCompletion(item.fecha_fin_estimada);
+            setEstimatedCompletion(
+                item.fecha_fin_estimada
+                    ? item.fecha_fin_estimada.split('T')[0]
+                    : ''
+            );
             }
             setService(refreshed);
             setStatus(refreshed.status);
@@ -252,7 +272,16 @@ export function ServiceDetailPage() {
                 credentials: 'include'
             });
             const data = await res.json();
-            setServiceEquipment(Array.isArray(data) ? data : []);
+
+            const utensilios = Array.isArray(data)
+            ? data
+            : Array.isArray(data.utensilios)
+            ? data.utensilios
+            : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+            setServiceEquipment(utensilios);
 
             const refreshed = await serviceApi.getById(service.id);
             setService(refreshed);
@@ -285,7 +314,16 @@ export function ServiceDetailPage() {
                 credentials: 'include'
             });
             const data = await res.json();
-            setServiceEquipment(Array.isArray(data) ? data : []);
+
+            const utensilios = Array.isArray(data)
+            ? data
+            : Array.isArray(data.utensilios)
+            ? data.utensilios
+            : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+            setServiceEquipment(utensilios);
 
             toast.success('Equipo desasignado');
         } catch (error) {

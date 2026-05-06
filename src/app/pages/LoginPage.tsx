@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Settings, AlertCircle, LogIn } from 'lucide-react';
+import { AlertCircle, LogIn } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { authApi } from '../lib/api';
 import { normalizeUser } from '../lib/utils';
+import logoUnison from '../../styles/logo_unison.png';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -51,22 +52,28 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#0B1120] via-[#111827] to-[#1E293B] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
-      <Card className="w-full max-w-md relative shadow-2xl border-0">
+      <Card className="w-full max-w-md relative shadow-2xl border border-white/10 bg-[#111827]/95 backdrop-blur-xl text-white">
         <CardHeader className="space-y-1 text-center pb-6">
           <div className="flex justify-center mb-4">
             <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-4 rounded-2xl shadow-lg">
-              <Settings className="h-10 w-10 text-white" />
+              <img 
+                src={logoUnison}
+                alt="Logo Unison"
+                className="h-12 w-12 object-contain"
+              />
             </div>
           </div>
-          <CardTitle className="text-2xl">Sistema de Gestión de Taller</CardTitle>
-          <CardDescription className="text-base">
+          <CardTitle className="text-3xl font-bold text-white">
+            Agenda de Carpintería Unison
+          </CardTitle>
+          <CardDescription className="text-base text-blue-200">
             Ingresa tus credenciales para acceder
           </CardDescription>
         </CardHeader>
@@ -80,34 +87,38 @@ export function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
+              <Label htmlFor="email" className="text-blue-100">
+                Correo Electrónico
+              </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="usuario@empresa.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11"
+                className="h-11 bg-white/10 border-white/10 text-white placeholder:text-blue-200 focus:border-blue-400"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password" className="text-blue-100">
+                Contraseña
+              </Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11"
+                className="h-11 bg-white/10 border-white/10 text-white placeholder:text-blue-200 focus:border-blue-400"
                 required
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg"
+              className="w-full h-11 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-xl text-white font-semibold"
               disabled={loading}
             >
               {loading ? (

@@ -250,12 +250,18 @@ export function EquipmentPage() {
     e.preventDefault();
 
     if (!maintenanceData.nextMaintenanceDate) {
-      toast.error('La fecha y hora de mantenimiento son requeridas');
+      toast.error('La fecha de mantenimiento es requerida');
       return;
     }
 
-    if (isPastDateTime(maintenanceData.nextMaintenanceDate)) {
-      toast.error('La fecha y hora de mantenimiento no pueden ser anteriores al momento actual');
+    const selectedDate = new Date(maintenanceData.nextMaintenanceDate);
+    const today = new Date();
+
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
       return;
     }
 
@@ -458,16 +464,26 @@ export function EquipmentPage() {
             </DialogHeader>
             <form onSubmit={handleMaintenanceSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="maintenanceDate">Próxima fecha de mantenimiento *</Label>
+                <Label htmlFor="maintenanceDate">Fecha de mantenimiento *</Label>
                 <input
                   id="maintenanceDate"
-                  type="datetime-local"
+                  type="date"
                   className="w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900 appearance-none [color-scheme:light]"
-                  value={maintenanceData.nextMaintenanceDate}
-                  min={getNowLocalDateTimeValue()}
+                  value={
+                    maintenanceData.nextMaintenanceDate
+                      ? maintenanceData.nextMaintenanceDate.split('T')[0]
+                      : ''
+                  }
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => {
-                    if (isPastDateTime(e.target.value)) {
-                      toast.error('La fecha y hora de mantenimiento no pueden ser anteriores al momento actual');
+                    const selectedDate = new Date(e.target.value);
+                    const today = new Date();
+
+                    today.setHours(0, 0, 0, 0);
+                    selectedDate.setHours(0, 0, 0, 0);
+
+                    if (selectedDate < today) {
+                      toast.error('La fecha de mantenimiento no puede ser anterior a hoy');
                       return;
                     }
                     setMaintenanceData(prev => ({ ...prev, nextMaintenanceDate: e.target.value }))
@@ -773,33 +789,6 @@ export function EquipmentPage() {
                       <div className="flex items-center gap-2 flex-wrap">
 
                         <div className="flex gap-2">
-
-                          {/* DISPONIBILIDAD */}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-9 px-3"
-                            disabled={isUnderMaintenance(item)}
-                            onClick={() => {
-                              if (isUnderMaintenance(item)) {
-                                toast.error('El equipo está en mantenimiento');
-                                return;
-                              }
-                              toggleAvailability(item);
-                            }}
-                          >
-                            {item.available ? (
-                              <>
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Marcar en uso
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Marcar disponible
-                              </>
-                            )}
-                          </Button>
 
                           {/* ✏️ EDITAR */}
                           <Button
