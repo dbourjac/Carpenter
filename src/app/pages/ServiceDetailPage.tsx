@@ -178,11 +178,8 @@ export function ServiceDetailPage() {
                 ubicacion: location || null
             });
             }
-            if (status === 'completed' && service.status !== 'completed') {
-            await serviceApi.completar(
-                service.id,
-                new Date().toISOString().split('T')[0]
-            );
+            if (status !== service.status) {
+                await serviceApi.cambiarStatus(service.id, status);
             }
             await serviceApi.update(service.id, {
             name: service.name,
@@ -391,7 +388,7 @@ export function ServiceDetailPage() {
                     {/* General Information */}
                     <Card className="border-0 shadow-lg">
                         <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50/50 border-b">
-                            {service.status === 'completed' && (
+                            {status === 'completed' && (
                                 <div className="bg-green-50 border-2 border-green-400 rounded-lg p-4 mb-4">
                                     <p className="font-semibold text-green-900">Servicio Finalizado</p>
                                     <p className="text-sm text-green-700">
@@ -421,7 +418,7 @@ export function ServiceDetailPage() {
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Fecha de Fin</p>
                                     <p className="font-semibold text-gray-900">
-                                        {service.status === 'completed'
+                                        {status === 'completed'
                                             ? formatDate(service.endDate)
                                             : 'Aún no finalizado'}
                                     </p>
