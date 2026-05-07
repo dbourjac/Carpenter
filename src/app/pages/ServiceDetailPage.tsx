@@ -195,18 +195,22 @@ export function ServiceDetailPage() {
                     );
                 }
             }
-            await serviceApi.update(service.id, {
-            name: service.name,
-            type: service.type,
-            description: service.description,
-            startDate: service.startDate,
-            endDate: service.endDate,
-            solicitanteId: service.solicitanteId,
-            priority,
-            assignedTechnician: assignedTechnician || null,
-            location: location || null,
-            estimatedCompletionDate: estimatedCompletion || null,
-            });
+            if (status === service.status) {
+
+                await serviceApi.update(service.id, {
+                    name: service.name,
+                    type: service.type,
+                    description: service.description,
+                    startDate: service.startDate,
+                    endDate: service.endDate,
+                    solicitanteId: service.solicitanteId,
+                    priority,
+                    assignedTechnician: assignedTechnician || null,
+                    location: location || null,
+                    estimatedCompletionDate: estimatedCompletion || null,
+                });
+
+            }
 
             const refreshed = await serviceApi.getById(service.id);
             const seguimientoData = await seguimientoApi.getByServiceId(service.id);
