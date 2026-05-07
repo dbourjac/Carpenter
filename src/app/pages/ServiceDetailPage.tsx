@@ -178,28 +178,39 @@ export function ServiceDetailPage() {
                 ubicacion: location || null
             });
             }
-            await serviceApi.update(service.id, {
-                name: service.name,
-                type: service.type,
-                description: service.description,
-                startDate: service.startDate,
+            const currentStatus = service.status;
 
-                endDate:
-                    status === 'completed'
-                        ? new Date().toISOString().split('T')[0]
-                        : null,
+                if (
+                    status === 'completed' &&
+                    currentStatus !== 'completed'
+                ) {
+                    await serviceApi.completar(
+                        service.id,
+                        new Date().toISOString().split('T')[0]
+                    );
+                }
 
-                solicitanteId: service.solicitanteId,
+                await serviceApi.update(service.id, {
+                    name: service.name,
+                    type: service.type,
+                    description: service.description,
+                    startDate: service.startDate,
 
-                status,
-                priority,
+                    endDate:
+                        status === 'completed'
+                            ? new Date().toISOString().split('T')[0]
+                            : null,
 
-                assignedTechnician: assignedTechnician || null,
+                    solicitanteId: service.solicitanteId,
 
-                location: location || null,
+                    priority,
 
-                estimatedCompletionDate: estimatedCompletion || null,
-            });
+                    assignedTechnician: assignedTechnician || null,
+
+                    location: location || null,
+
+                    estimatedCompletionDate: estimatedCompletion || null,
+                });
             const refreshed = await serviceApi.getById(service.id);
             const seguimientoData = await seguimientoApi.getByServiceId(service.id);
             const item = Array.isArray(seguimientoData) ? seguimientoData[0] : seguimientoData;
