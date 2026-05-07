@@ -626,6 +626,7 @@ export const serviceApi = {
   update: async (id: string, updates: any) => {
 
     const payload = {
+
       nombre_servicio:
         updates.name,
 
@@ -685,9 +686,10 @@ export const serviceApi = {
 
       ubicacion:
         updates.location || '',
+
     };
 
-    console.log('🚨 UPDATE PAYLOAD:', payload);
+    console.log('🚨 PAYLOAD FINAL:', payload);
 
     const response = await api.put(
       `/api/servicios/${id}`,
