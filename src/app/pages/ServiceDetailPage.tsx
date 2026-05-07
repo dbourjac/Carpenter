@@ -173,32 +173,50 @@ export function ServiceDetailPage() {
 
             if (!service) return;
 
-            // ===== COMPLETAR SERVICIO =====
-            if (
-                status === 'completed' &&
-                service.status !== 'completed'
-            ) {
+                // =====================================
+                // 1. ACTUALIZAR STATUS
+                // =====================================
 
-                await serviceApi.completar(
-                    service.id,
-                    new Date().toISOString().split('T')[0]
-                );
+                if (status !== service.status) {
 
-            } else {
+                    // COMPLETAR
+                    if (
+                        status === 'completed'
+                    ) {
 
-                // 🚨 NO mandar status aquí
-                // porque el backend cambiarStatus está roto
+                        await serviceApi.completar(
+                            service.id,
+                            new Date().toISOString().split('T')[0]
+                        );
+
+                    } else {
+
+                        // PENDIENTE / EN PROGRESO
+
+                        await serviceApi.cambiarStatus(
+                            service.id,
+                            status
+                        );
+                    }
+                }
+
+                // =====================================
+                // 2. ACTUALIZAR DATOS GENERALES
+                // =====================================
 
                 await serviceApi.update(service.id, {
-                    name: service.name,
 
-                    type: service.type,
+                    name:
+                        service.name,
 
-                    priority: priority,
+                    type:
+                        service.type,
 
-                    status: status,
+                    priority:
+                        priority,
 
-                    startDate: service.startDate,
+                    startDate:
+                        service.startDate,
 
                     endDate:
                         status === 'completed'
@@ -214,38 +232,45 @@ export function ServiceDetailPage() {
                     location:
                         location || '',
                 });
-            }
 
-            // ===== SEGUIMIENTO =====
-            if (seguimientoId) {
+                // =====================================
+                // 3. SEGUIMIENTO
+                // =====================================
 
-                await seguimientoApi.update(seguimientoId, {
-                    fecha_fin_estimada:
-                        estimatedCompletion || null,
+                if (seguimientoId) {
 
-                    observaciones:
-                        observations || null,
+                    await seguimientoApi.update(seguimientoId, {
 
-                    personal_id:
-                        assignedTechnician || null,
+                        fecha_fin_estimada:
+                            estimatedCompletion || null,
 
-                    ubicacion:
-                        location || null
-                });
-            }
+                        observaciones:
+                            observations || null,
 
-            const refreshed =
-                await serviceApi.getById(service.id);
+                        personal_id:
+                            assignedTechnician || null,
 
-            setService(refreshed);
+                        ubicacion:
+                            location || null
+                    });
+                }
 
-            setStatus(refreshed.status);
+                // =====================================
+                // 4. REFRESH
+                // =====================================
 
-            setPriority(refreshed.priority);
+                const refreshed =
+                    await serviceApi.getById(service.id);
 
-            toast.success(
-                'Información actualizada correctamente'
-            );
+                setService(refreshed);
+
+                setStatus(refreshed.status);
+
+                setPriority(refreshed.priority);
+
+                toast.success(
+                    'Información actualizada correctamente'
+                );
 
         } catch (error) {
 
