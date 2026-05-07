@@ -196,25 +196,23 @@ export function ServiceDetailPage() {
 
                     priority: priority,
 
-                    description: service.description,
+                    status: status,
 
                     startDate: service.startDate,
 
                     endDate:
-                        service.status === 'completed'
-                            ? service.endDate
+                        status === 'completed'
+                            ? new Date().toISOString()
                             : null,
 
-                    solicitanteId: service.solicitanteId,
+                    solicitanteId:
+                        service.solicitanteId,
 
                     assignedTechnician:
                         assignedTechnician || null,
 
                     location:
-                        location || null,
-
-                    estimatedCompletionDate:
-                        estimatedCompletion || null,
+                        location || '',
                 });
             }
 
