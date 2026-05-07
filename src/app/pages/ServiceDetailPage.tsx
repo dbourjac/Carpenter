@@ -170,32 +170,29 @@ export function ServiceDetailPage() {
 
     const handleUpdateBasicInfo = async () => {
         try {
-            if (seguimientoId) {
-            await seguimientoApi.update(seguimientoId, {
-                fecha_fin_estimada: estimatedCompletion || null,
-                observaciones: observations || null,
-                personal_id: assignedTechnician || null,
-                ubicacion: location || null
-            });
-            }
-            const currentStatus = service.status;
 
-                if (
-                    status === 'completed' &&
-                    service.status !== 'completed'
-                ) {
-                    await serviceApi.completar(
-                        service.id,
-                        new Date().toISOString().split('T')[0]
-                    );
-                }
+            if (!service) return;
+
+            // ===== COMPLETAR SERVICIO =====
+            if (
+                status === 'completed' &&
+                service.status !== 'completed'
+            ) {
+
+                await serviceApi.completar(
+                    service.id,
+                    new Date().toISOString().split('T')[0]
+                );
+
+            } else {
+
+                // 🚨 NO mandar status aquí
+                // porque el backend cambiarStatus está roto
 
                 await serviceApi.update(service.id, {
                     name: service.name,
 
                     type: service.type,
-
-                    status: service.status,
 
                     priority: priority,
 
@@ -205,7 +202,7 @@ export function ServiceDetailPage() {
 
                     endDate:
                         service.status === 'completed'
-                            ? new Date().toISOString().split('T')[0]
+                            ? service.endDate
                             : null,
 
                     solicitanteId: service.solicitanteId,
@@ -219,27 +216,46 @@ export function ServiceDetailPage() {
                     estimatedCompletionDate:
                         estimatedCompletion || null,
                 });
-            const refreshed = await serviceApi.getById(service.id);
-            const seguimientoData = await seguimientoApi.getByServiceId(service.id);
-            const item = Array.isArray(seguimientoData) ? seguimientoData[0] : seguimientoData;
-
-            if (item?.fecha_fin_estimada) {
-            setEstimatedCompletion(
-                item.fecha_fin_estimada
-                    ? item.fecha_fin_estimada.split('T')[0]
-                    : ''
-            );
             }
+
+            // ===== SEGUIMIENTO =====
+            if (seguimientoId) {
+
+                await seguimientoApi.update(seguimientoId, {
+                    fecha_fin_estimada:
+                        estimatedCompletion || null,
+
+                    observaciones:
+                        observations || null,
+
+                    personal_id:
+                        assignedTechnician || null,
+
+                    ubicacion:
+                        location || null
+                });
+            }
+
+            const refreshed =
+                await serviceApi.getById(service.id);
+
             setService(refreshed);
+
             setStatus(refreshed.status);
+
             setPriority(refreshed.priority);
 
-            toast.success('Información actualizada correctamente');
+            toast.success(
+                'Información actualizada correctamente'
+            );
 
         } catch (error) {
+
+            console.error(error);
+
             toast.error('Error al actualizar');
         }
-        };
+    };
 
     const handleUpdateObservations = async () => {
         if (!seguimientoId) {
