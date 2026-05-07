@@ -182,7 +182,7 @@ export function ServiceDetailPage() {
 
                 if (
                     status === 'completed' &&
-                    currentStatus !== 'completed'
+                    service.status !== 'completed'
                 ) {
                     await serviceApi.completar(
                         service.id,
@@ -192,24 +192,32 @@ export function ServiceDetailPage() {
 
                 await serviceApi.update(service.id, {
                     name: service.name,
+
                     type: service.type,
+
+                    status: service.status,
+
+                    priority: priority,
+
                     description: service.description,
+
                     startDate: service.startDate,
 
                     endDate:
-                        status === 'completed'
+                        service.status === 'completed'
                             ? new Date().toISOString().split('T')[0]
                             : null,
 
                     solicitanteId: service.solicitanteId,
 
-                    priority,
+                    assignedTechnician:
+                        assignedTechnician || null,
 
-                    assignedTechnician: assignedTechnician || null,
+                    location:
+                        location || null,
 
-                    location: location || null,
-
-                    estimatedCompletionDate: estimatedCompletion || null,
+                    estimatedCompletionDate:
+                        estimatedCompletion || null,
                 });
             const refreshed = await serviceApi.getById(service.id);
             const seguimientoData = await seguimientoApi.getByServiceId(service.id);
