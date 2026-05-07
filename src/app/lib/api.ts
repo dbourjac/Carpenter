@@ -710,11 +710,26 @@ export const serviceApi = {
     return normalizeService(response.data);
   },
 
-  cambiarStatus: async (id: string, status: ServiceStatus) => {
-    const response = await api.patch(`/api/servicios/${id}/status`, {
-      status: toBackendServiceStatus(status),
-    });
-    return normalizeService(response.data);
+  cambiarStatus: async (
+    id: string,
+    status: string
+  ) => {
+
+    const backendStatus =
+      status === 'completed'
+        ? 'Completado'
+        : status === 'in-progress'
+          ? 'En progreso'
+          : 'Pendiente';
+
+    const response = await api.patch(
+      `/api/servicios/${id}/status`,
+      {
+        status: backendStatus
+      }
+    );
+
+    return response.data;
   },
 
   cambiarPrioridad: async (id: string, prioridad: ServiceRequest['priority']) => {
