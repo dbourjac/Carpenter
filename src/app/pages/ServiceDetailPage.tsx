@@ -179,19 +179,27 @@ export function ServiceDetailPage() {
             });
             }
             await serviceApi.update(service.id, {
-            name: service.name,
-            type: service.type,
-            description: service.description,
-            startDate: service.startDate,
-            endDate: service.endDate,
-            solicitanteId: service.solicitanteId,
-            status,
-            priority,
-            assignedTechnician: assignedTechnician || null,
-            location: location || null,
-            estimatedCompletionDate: estimatedCompletion || null,
-            });
+                name: service.name,
+                type: service.type,
+                description: service.description,
+                startDate: service.startDate,
 
+                endDate:
+                    status === 'completed'
+                        ? new Date().toISOString().split('T')[0]
+                        : null,
+
+                solicitanteId: service.solicitanteId,
+
+                status,
+                priority,
+
+                assignedTechnician: assignedTechnician || null,
+
+                location: location || null,
+
+                estimatedCompletionDate: estimatedCompletion || null,
+            });
             const refreshed = await serviceApi.getById(service.id);
             const seguimientoData = await seguimientoApi.getByServiceId(service.id);
             const item = Array.isArray(seguimientoData) ? seguimientoData[0] : seguimientoData;
