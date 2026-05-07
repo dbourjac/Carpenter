@@ -623,14 +623,78 @@ export const serviceApi = {
     return normalizeService(response.data);
   },
 
-  update: async (id: string, datos: any) => {
-    try {
-      const response = await api.put(`/api/servicios/${id}`, toBackendService(datos));
-      return normalizeService(response.data);
-    } catch (error: any) {
-      console.error('[serviceApi.update] Error detalle:', error.response?.data);
-      throw error;
-    }
+  update: async (id: string, updates: any) => {
+
+    const payload = {
+      nombre_servicio:
+        updates.name,
+
+      solicitante_id:
+        updates.solicitanteId,
+
+      personal_id:
+        updates.assignedTechnician || null,
+
+      tipo_servicio:
+        (() => {
+
+          if (updates.type === 'preventive')
+            return 'Preventivo';
+
+          if (updates.type === 'corrective')
+            return 'Correctivo';
+
+          if (updates.type === 'installation')
+            return 'Instalación';
+
+          return 'Otro';
+
+        })(),
+
+      fecha_inicio:
+        updates.startDate,
+
+      fecha_fin:
+        updates.endDate || null,
+
+      status:
+        (() => {
+
+          if (updates.status === 'completed')
+            return 'Completado';
+
+          if (updates.status === 'in-progress')
+            return 'En progreso';
+
+          return 'Pendiente';
+
+        })(),
+
+      prioridad:
+        (() => {
+
+          if (updates.priority === 'high')
+            return 'alta';
+
+          if (updates.priority === 'low')
+            return 'baja';
+
+          return 'media';
+
+        })(),
+
+      ubicacion:
+        updates.location || '',
+    };
+
+    console.log('🚨 UPDATE PAYLOAD:', payload);
+
+    const response = await api.put(
+      `/api/servicios/${id}`,
+      payload
+    );
+
+    return normalizeService(response.data);
   },
 
   remove: async (id: string) => {
