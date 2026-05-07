@@ -170,115 +170,55 @@ export function ServiceDetailPage() {
 
     const handleUpdateBasicInfo = async () => {
         try {
+            if (seguimientoId) {
+            await seguimientoApi.update(seguimientoId, {
+                fecha_fin_estimada: estimatedCompletion || null,
+                observaciones: observations || null,
+                personal_id: assignedTechnician || null,
+                ubicacion: location || null
+            });
+            }
+            if (status === 'completed' && service.status !== 'completed') {
+            await serviceApi.completar(
+                service.id,
+                new Date().toISOString().split('T')[0]
+            );
+            }
+            await serviceApi.update(service.id, {
+            name: service.name,
+            type: service.type,
+            description: service.description,
+            startDate: service.startDate,
+            endDate: service.endDate,
+            solicitanteId: service.solicitanteId,
+            status,
+            priority,
+            assignedTechnician: assignedTechnician || null,
+            location: location || null,
+            estimatedCompletionDate: estimatedCompletion || null,
+            });
 
-            if (!service) return;
+            const refreshed = await serviceApi.getById(service.id);
+            const seguimientoData = await seguimientoApi.getByServiceId(service.id);
+            const item = Array.isArray(seguimientoData) ? seguimientoData[0] : seguimientoData;
 
-                // =====================================
-                // 1. ACTUALIZAR STATUS
-                // =====================================
+            if (item?.fecha_fin_estimada) {
+            setEstimatedCompletion(
+                item.fecha_fin_estimada
+                    ? item.fecha_fin_estimada.split('T')[0]
+                    : ''
+            );
+            }
+            setService(refreshed);
+            setStatus(refreshed.status);
+            setPriority(refreshed.priority);
 
-                if (status !== service.status) {
-
-                    // COMPLETAR
-                    if (
-                        status === 'completed'
-                    ) {
-
-                        await serviceApi.completar(
-                            service.id,
-                            new Date().toISOString().split('T')[0]
-                        );
-
-                    } else {
-
-                        // PENDIENTE / EN PROGRESO
-
-                        await serviceApi.cambiarStatus(
-                            service.id,
-                            status
-                        );
-                    }
-                }
-
-                // =====================================
-                // 2. ACTUALIZAR DATOS GENERALES
-                // =====================================
-
-                await serviceApi.update(service.id, {
-
-                    name:
-                        service.name,
-
-                    type:
-                        service.type,
-
-                    priority:
-                        priority,
-
-                    startDate:
-                        service.startDate,
-
-                    endDate:
-                        status === 'completed'
-                            ? new Date().toISOString()
-                            : null,
-
-                    solicitanteId:
-                        service.solicitanteId,
-
-                    assignedTechnician:
-                        assignedTechnician || null,
-
-                    location:
-                        location || '',
-                });
-
-                // =====================================
-                // 3. SEGUIMIENTO
-                // =====================================
-
-                if (seguimientoId) {
-
-                    await seguimientoApi.update(seguimientoId, {
-
-                        fecha_fin_estimada:
-                            estimatedCompletion || null,
-
-                        observaciones:
-                            observations || null,
-
-                        personal_id:
-                            assignedTechnician || null,
-
-                        ubicacion:
-                            location || null
-                    });
-                }
-
-                // =====================================
-                // 4. REFRESH
-                // =====================================
-
-                const refreshed =
-                    await serviceApi.getById(service.id);
-
-                setService(refreshed);
-
-                setStatus(refreshed.status);
-
-                setPriority(refreshed.priority);
-
-                toast.success(
-                    'Información actualizada correctamente'
-                );
+            toast.success('Información actualizada correctamente');
 
         } catch (error) {
-
-            console.error(error);
-
             toast.error('Error al actualizar');
         }
-    };
+        };
 
     const handleUpdateObservations = async () => {
         if (!seguimientoId) {
