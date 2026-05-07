@@ -644,10 +644,18 @@ export const serviceApi = {
     return normalizeService(response.data);
   },
 
-  cambiarStatus: async (id: string, status: ServiceStatus) => {
-    const response = await api.patch(`/api/servicios/${id}/status`, {
-      status: toBackendServiceStatus(status),
-    });
+  cambiarStatus: async (
+    id: string,
+    status: string
+  ) => {
+
+    const response = await api.patch(
+      `/api/servicios/${id}/status`,
+      {
+        status: toBackendServiceStatus(status)
+      }
+    );
+
     return normalizeService(response.data);
   },
 
