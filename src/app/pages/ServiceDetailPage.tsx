@@ -200,7 +200,7 @@ export function ServiceDetailPage() {
                 await serviceApi.update(service.id, {
                     name: service.name,
                     type: service.type,
-                    description: service.description,
+                    description: service.description || service.descripcion || '',
                     startDate: service.startDate,
                     endDate: service.endDate,
                     solicitanteId: service.solicitanteId,
@@ -223,6 +223,9 @@ export function ServiceDetailPage() {
                     : ''
             );
             }
+            refreshed.estimatedCompletionDate =
+                item?.fecha_fin_estimada || null;
+                
             setService(refreshed);
             setStatus(refreshed.status);
             setPriority(refreshed.priority);
