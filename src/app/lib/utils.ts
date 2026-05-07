@@ -74,11 +74,20 @@ export const normalizeUser = (user: any): User => {
 };
 
 export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('es-ES', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
+
+  if (!dateString) return 'Sin fecha';
+
+  const safeDate =
+    dateString.includes('T')
+      ? dateString
+      : `${dateString}T12:00:00`;
+
+  const date = new Date(safeDate);
+
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
   });
 };
 
