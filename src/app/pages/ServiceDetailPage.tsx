@@ -178,11 +178,22 @@ export function ServiceDetailPage() {
                 ubicacion: location || null
             });
             }
-            if (status === 'completed' && service.status !== 'completed') {
-            await serviceApi.completar(
-                service.id,
-                new Date().toISOString().split('T')[0]
-            );
+            if (status !== service.status) {
+
+                if (status === 'completed') {
+
+                    await serviceApi.completar(
+                        service.id,
+                        new Date().toISOString().split('T')[0]
+                    );
+
+                } else {
+
+                    await serviceApi.cambiarStatus(
+                        service.id,
+                        status
+                    );
+                }
             }
             await serviceApi.update(service.id, {
             name: service.name,
@@ -191,7 +202,6 @@ export function ServiceDetailPage() {
             startDate: service.startDate,
             endDate: service.endDate,
             solicitanteId: service.solicitanteId,
-            status,
             priority,
             assignedTechnician: assignedTechnician || null,
             location: location || null,
