@@ -27,41 +27,13 @@ export function ServicesListPage() {
 
   const filteredServices = services
     .filter(service => {
-      const query = searchQuery.toLowerCase().trim();
+      const name = (service.name || service.nombre_servicio || '').toLowerCase();
+      const requester = (service.requesterName || '').toLowerCase();
+      const query = searchQuery.toLowerCase();
 
-      const name =
-        (service.name || service.nombre_servicio || '').toLowerCase();
-
-      const requester =
-        (service.requesterName || '').toLowerCase();
-
-      const area =
-        (service.requesterArea || '').toLowerCase();
-
-      const location =
-        (service.location || '').toLowerCase();
-
-      const technicianName = (
-        personal.find(
-          p => String(p.id) === String(service.assignedTechnician)
-        )?.nombre || ''
-      ).toLowerCase();
-
-      return (
-        name.includes(query) ||
-        requester.includes(query) ||
-        area.includes(query) ||
-        location.includes(query) ||
-        technicianName.includes(query)
-      );
+      return name.includes(query) || requester.includes(query);
     })
-    .filter(service => {
-      if (statusFilter === 'all') {
-        return service.status !== 'completed';
-      }
-
-      return service.status === statusFilter;
-    })
+    .filter(service => statusFilter === 'all' || service.status === statusFilter)
     .filter(service => priorityFilter === 'all' || service.priority === priorityFilter)
     .filter(service => typeFilter === 'all' || service.type === typeFilter);
 
@@ -128,7 +100,7 @@ export function ServicesListPage() {
               <div className="relative flex items-center h-11">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Servicio, técnico, solicitante, área, ubicación..."
+                  placeholder="Nombre, área, descripción..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 h-11"
