@@ -182,9 +182,12 @@ export function ServiceDetailPage() {
 
                 if (status === 'completed') {
 
+                    const today = new Date();
+                    today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+
                     await serviceApi.completar(
                         service.id,
-                        new Date().toISOString().split('T')[0]
+                        today.toISOString().split('T')[0]
                     );
 
                 } else {
