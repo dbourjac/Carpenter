@@ -126,7 +126,7 @@ export function ProfilePage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Última actualización</p>
-              <p className="font-medium">Abril 2026</p>
+              <p className="font-medium">Mayo 2026</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Entorno</p>

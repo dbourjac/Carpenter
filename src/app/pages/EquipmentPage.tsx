@@ -296,7 +296,7 @@ export function EquipmentPage() {
           ? {
               ...eq,
 
-              nextMaintenanceDate: null,
+              nextMaintenanceDate: '',
 
               status_mantenimiento: 'Al día',
 
