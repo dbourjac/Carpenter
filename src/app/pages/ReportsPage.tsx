@@ -48,7 +48,7 @@ export function ReportsPage() {
         let servicios = [];
 
         try {
-          servicios = await serviceApi.getAll();
+          servicios = await reportesApi.getHistorial();
         } catch (e) {
           console.error('services falló', e);
         }
@@ -111,10 +111,8 @@ export function ReportsPage() {
         const ev = await serviceApi.getEvidencias(selectedServiceId);
         setEvidencias(Array.isArray(ev) ? ev : []);
 
-        const res = await fetch(`/api/servicios/${selectedServiceId}/utensilios`, {
-          credentials: 'include'
-        });
-        const data = await res.json();
+        const data = await serviceApi.getUtensilios(selectedServiceId);
+
         setUtensilios(Array.isArray(data) ? data : []);
 
       } catch (err) {
