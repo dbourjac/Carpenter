@@ -181,37 +181,44 @@ export function ReportsPage() {
 
           <h3>Solicitante</h3>
           <p>${s.requesterName || 'N/A'} - ${s.nombre_area || ''}</p>
-          <p>${s.requesterPhone || ''} - ${s.requesterEmail || ''}</p>
+          <p>
+            ${s.requesterPhone || s.telefono || ''}
+            -
+            ${s.requesterEmail || s.email || ''}
+          </p>
 
           <h3>Detalles</h3>
           <p><b>Observaciones:</b> ${seguimiento?.observaciones || 'Sin observaciones'}</p>
           <p><b>Descripción:</b> ${
-              s.description ||
-              s.descripcion ||
-              (
-                s.ubicacion?.includes(' | ')
-                  ? s.ubicacion.split(' | ')[1]
-                  : ''
-              ) ||
-              (
-                s.svc_ubicacion?.includes(' | ')
-                  ? s.svc_ubicacion.split(' | ')[1]
-                  : ''
-              ) ||
-              'N/A'
-            }</p>
+            s.description ||
+            s.descripcion ||
+            s.observaciones ||
+            (
+              s.ubicacion?.includes(' | ')
+                ? s.ubicacion.split(' | ')[1]
+                : ''
+            ) ||
+            (
+              s.svc_ubicacion?.includes(' | ')
+                ? s.svc_ubicacion.split(' | ')[1]
+                : ''
+            ) ||
+            'N/A'
+          }</p>
 
           <h4>Equipos</h4>
           ${
             utensilios.length > 0
-              ? utensilios.map(u => `<p>${u.tipo_utensilio || u.nombre}</p>`).join('')
+              ? utensilios.map(u => `<p>${u.name || u.nombre || 'Sin nombre'}</p>`).join('')
               : '<p>No hay equipos</p>'
           }
 
           <h4>Evidencias</h4>
           ${
             evidencias.length > 0
-              ? evidencias.map(e => `<img src="${e.url_image}" style="max-width:250px;height:auto;display:block;margin-bottom:10px;border-radius:8px;" />`).join('')
+              ? evidencias.map((_, i) =>
+                  `<p>Evidencia ${i + 1} adjunta</p>`
+                ).join('')
               : '<p>No hay evidencias</p>'
           }
 
@@ -625,7 +632,7 @@ export function ReportsPage() {
                       {
                         (
                           serviceData.status_final === 'Completado' ||
-                          serviceData.status === 'completed'
+                          serviceData.status === 'Completado'
                         )
                           ? formatDate(serviceData.fecha_fin || serviceData.endDate)
                           : 'No finalizado'
@@ -789,23 +796,20 @@ export function ReportsPage() {
                       <p>
                         <strong>Descripción:</strong>{' '}
                         {
+                          service.description ||
+                          service.descripcion ||
+                          service.observaciones ||
                           (
-                            service.description ||
-                            service.descripcion ||
-                            (
-                              service.ubicacion &&
-                              service.ubicacion.includes(' | ')
-                                ? service.ubicacion.split(' | ')[1]
-                                : ''
-                            ) ||
-                            (
-                              service.svc_ubicacion &&
-                              service.svc_ubicacion.includes(' | ')
-                                ? service.svc_ubicacion.split(' | ')[1]
-                                : ''
-                            ) ||
-                            'N/A'
-                          )
+                            service.ubicacion?.includes(' | ')
+                              ? service.ubicacion.split(' | ')[1]
+                              : ''
+                          ) ||
+                          (
+                            service.svc_ubicacion?.includes(' | ')
+                              ? service.svc_ubicacion.split(' | ')[1]
+                              : ''
+                          ) ||
+                          'N/A'
                         }
                       </p>
 
