@@ -413,7 +413,7 @@ export function ReportsPage() {
           <CardDescription>Estadísticas globales del taller</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6">
             <div>
               <p className="text-sm text-gray-600">Total Servicios</p>
               <p className="text-2xl font-bold text-gray-900">{dashboard?.resumen?.pendientes + dashboard?.resumen?.en_progreso + dashboard?.resumen?.completados || 0}</p>
@@ -433,13 +433,44 @@ export function ReportsPage() {
             <div>
               <p className="text-sm text-gray-600">Preventivos</p>
               <p className="text-2xl font-bold text-gray-900">
-                {resumenTipo.find(r => r.tipo?.toLowerCase().includes('prevent'))?.total ?? 0}
+                {
+                  resumenTipo.find(r =>
+                    r.tipo?.toLowerCase().includes('prevent')
+                  )?.total ?? 0
+                }
               </p>
             </div>
+
             <div>
               <p className="text-sm text-gray-600">Correctivos</p>
               <p className="text-2xl font-bold text-gray-900">
-                {resumenTipo.find(r => r.tipo?.toLowerCase().includes('repar'))?.total ?? 0}
+                {
+                  resumenTipo.find(r =>
+                    r.tipo?.toLowerCase().includes('repar')
+                  )?.total ?? 0
+                }
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600">Instalación</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {
+                  resumenTipo.find(r =>
+                    r.tipo?.toLowerCase().includes('instal')
+                  )?.total ?? 0
+                }
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600">Otro</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {
+                  resumenTipo.find(r =>
+                    r.tipo?.toLowerCase().includes('otro')
+                  )?.total ?? 0
+                }
               </p>
             </div>
           </div>
