@@ -444,6 +444,26 @@ export const utensiliosApi = {
       Rangos_mantenimiento: payload.rango || null
     });
   },
+    completeMaintenance: async (
+    id: string,
+    payload: {
+      descripcion?: string;
+      personal_id?: string;
+    }
+  ) => {
+    await api.post(`/api/utensilios/${id}/mantenimiento`, {
+      fecha_mantenimiento: new Date().toISOString().split('T')[0],
+      tipo: 'Correctivo',
+      descripcion: payload.descripcion || 'Mantenimiento completado',
+      personal_id: payload.personal_id || null,
+      proxima_fecha: null
+    });
+  },
+
+  getMaintenanceHistory: async (id: string) => {
+    const response = await api.get(`/api/utensilios/${id}/mantenimiento`);
+    return response.data;
+  },
   };
 
 export default api;
