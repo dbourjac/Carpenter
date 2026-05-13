@@ -68,7 +68,11 @@ export function DashboardPage() {
         date.getFullYear() === now.getFullYear()
       );
     }).length;
-    const highPriority = services.filter(s => s.priority === 'high').length;
+    const highPriority = services.filter(
+      s =>
+        s.priority === 'high' &&
+        s.status !== 'completed'
+    ).length;
     
     const byType = [
       { name: 'Preventivo', value: services.filter(s => s.type === 'preventive').length, fill: '#3b82f6' },

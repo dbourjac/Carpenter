@@ -230,27 +230,31 @@ export function ReportsPage() {
           <h3>Detalles</h3>
           <p><b>Observaciones:</b> ${seguimiento?.observaciones || 'Sin observaciones'}</p>
           <p><b>Descripción:</b> ${
-            s.svc_ubicacion
-              ? (
-                  s.svc_ubicacion.includes(' | ')
-                    ? s.svc_ubicacion.split(' | ')[1]
-                    : s.svc_ubicacion
-                )
-              : (
-                  s.ubicacion
-                    ? (
-                        s.ubicacion.includes(' | ')
-                          ? s.ubicacion.split(' | ')[1]
-                          : s.ubicacion
-                      )
-                    : (
-                        s.description ||
-                        s.descripcion ||
-                        s.observaciones ||
-                        serviceData?.description ||
-                        'Sin descripción'
-                      )
-                )
+            s.description ||
+            s.descripcion ||
+            s.observaciones ||
+
+            (
+              s.svc_ubicacion
+                ? (
+                    s.svc_ubicacion.includes(' | ')
+                      ? s.svc_ubicacion.split(' | ')[1]
+                      : s.svc_ubicacion
+                  )
+                : ''
+            ) ||
+
+            (
+              s.ubicacion
+                ? (
+                    s.ubicacion.includes(' | ')
+                      ? s.ubicacion.split(' | ')[1]
+                      : s.ubicacion
+                  )
+                : ''
+            ) ||
+
+            'Sin descripción'
           }</p>
 
           <h4>Equipos</h4>
@@ -870,21 +874,28 @@ export function ReportsPage() {
                           service.description ||
                           service.descripcion ||
                           service.observaciones ||
+
                           (
-                            service.svc_ubicacion &&
-                            service.svc_ubicacion.includes(' | ')
-                          )
-                            ? service.svc_ubicacion.split(' | ')[1]
-                            : (
-                                service.ubicacion &&
-                                service.ubicacion.includes(' | ')
-                              )
-                            ? service.ubicacion.split(' | ')[1]
-                            : (
-                                service.svc_ubicacion ||
-                                service.ubicacion ||
-                                'Sin descripción'
-                              )
+                            service.svc_ubicacion
+                              ? (
+                                  service.svc_ubicacion.includes(' | ')
+                                    ? service.svc_ubicacion.split(' | ')[1]
+                                    : service.svc_ubicacion
+                                )
+                              : null
+                          ) ||
+
+                          (
+                            service.ubicacion
+                              ? (
+                                  service.ubicacion.includes(' | ')
+                                    ? service.ubicacion.split(' | ')[1]
+                                    : service.ubicacion
+                                )
+                              : null
+                          ) ||
+
+                          'Sin descripción'
                         }
                       </p>
 
