@@ -170,11 +170,11 @@ export function ReportsPage() {
               : 'Correctivo'
           }</p>
 
-          <p><b>Estado:</b> ${s.status_final}</p>
+          <p><b>Estado:</b> ${s.status_final || s.status || 'Pendiente'}</p>
           <p><b>Técnico:</b> ${s.nombre_personal || 'No asignado'}</p>
           <p><b>Fecha inicio:</b> ${formatDate(s.fecha_inicio)}</p>
           <p><b>Fecha fin:</b> ${
-            s.status_final === 'Completado'
+            (s.status_final || s.status) === 'Completado'
               ? formatDate(s.fecha_fin)
               : 'No finalizado'
           }</p>
@@ -185,7 +185,21 @@ export function ReportsPage() {
 
           <h3>Detalles</h3>
           <p><b>Observaciones:</b> ${seguimiento?.observaciones || 'Sin observaciones'}</p>
-          <p><b>Descripción:</b> ${s.descripcion || ''}</p>
+          <p><b>Descripción:</b> ${
+              s.description ||
+              s.descripcion ||
+              (
+                s.ubicacion?.includes(' | ')
+                  ? s.ubicacion.split(' | ')[1]
+                  : ''
+              ) ||
+              (
+                s.svc_ubicacion?.includes(' | ')
+                  ? s.svc_ubicacion.split(' | ')[1]
+                  : ''
+              ) ||
+              'N/A'
+            }</p>
 
           <h4>Equipos</h4>
           ${
@@ -197,7 +211,7 @@ export function ReportsPage() {
           <h4>Evidencias</h4>
           ${
             evidencias.length > 0
-              ? evidencias.map(e => `<img src="${e.url_image}" style="width:300px;margin:5px;" />`).join('')
+              ? evidencias.map(e => `<img src="${e.url_image}" style="max-width:250px;height:auto;display:block;margin-bottom:10px;border-radius:8px;" />`).join('')
               : '<p>No hay evidencias</p>'
           }
 
@@ -240,7 +254,14 @@ export function ReportsPage() {
       return true;
     }
 
-      const date = new Date(rawDate);
+      const cleanDate = String(rawDate).split('T')[0];
+      const [year, month, day] = cleanDate.split('-');
+
+      const date = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day)
+      );
 
     if (isNaN(date.getTime())) {
       return true;
@@ -559,9 +580,11 @@ export function ReportsPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Información del Servicio</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600">ID de Servicio</p>
+                    <p className="text-sm text-gray-600">Servicio</p>
+
                     <p className="font-medium">
-                      {serviceData.nombre_servicio || serviceData.name || `Servicio #${serviceData.id}`}
+                      #{serviceData.id} • {' '}
+                      {serviceData.nombre_servicio || serviceData.name}
                     </p>
                   </div>
                   <div>
@@ -575,12 +598,18 @@ export function ReportsPage() {
                   <div>
                     <p className="text-sm text-gray-600">Estado</p>
                     <p className="font-medium">{getStatusLabel(
-                      serviceData.status_final === 'Completado'
-                        ? 'completed'
-                        : serviceData.status_final === 'Pendiente'
-                        ? 'pending'
-                        : 'in-progress'
-                    )}</p>
+                        (
+                          serviceData.status_final ||
+                          serviceData.status
+                        ) === 'Completado'
+                          ? 'completed'
+                          : (
+                              serviceData.status_final ||
+                              serviceData.status
+                            ) === 'Pendiente'
+                          ? 'pending'
+                          : 'in-progress'
+                      )}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Técnico Asignado</p>
@@ -760,10 +789,23 @@ export function ReportsPage() {
                       <p>
                         <strong>Descripción:</strong>{' '}
                         {
-                          service.description ||
-                          service.descripcion ||
-                          service.ubicacion?.split(' | ')[1] ||
-                          'N/A'
+                          (
+                            service.description ||
+                            service.descripcion ||
+                            (
+                              service.ubicacion &&
+                              service.ubicacion.includes(' | ')
+                                ? service.ubicacion.split(' | ')[1]
+                                : ''
+                            ) ||
+                            (
+                              service.svc_ubicacion &&
+                              service.svc_ubicacion.includes(' | ')
+                                ? service.svc_ubicacion.split(' | ')[1]
+                                : ''
+                            ) ||
+                            'N/A'
+                          )
                         }
                       </p>
 
