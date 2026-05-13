@@ -199,13 +199,14 @@ export function ReportsPage() {
             ${
               s.requesterPhone ||
               s.telefono ||
-              ''
+              s.tel_solicitante ||
+              'Sin teléfono'
             }
             -
             ${
               s.requesterEmail ||
               s.email ||
-              ''
+              'Sin email'
             }
           </p>
 
@@ -226,7 +227,6 @@ export function ReportsPage() {
                   s.description ||
                   s.descripcion ||
                   s.observaciones ||
-                  seguimiento?.observaciones ||
                   'Sin descripción'
                 )
           }</p>
@@ -243,7 +243,7 @@ export function ReportsPage() {
             evidencias.length > 0
               ? evidencias.map(e => `
                   <img
-                    src="${e.url_image || e.imagen}"
+                    src="${e.url_image}"
                     style="
                       max-width:250px;
                       display:block;
@@ -638,16 +638,14 @@ export function ReportsPage() {
                     <p className="text-sm text-gray-600">Estado</p>
                     <p className="font-medium">{getStatusLabel(
                       (
-                        serviceData.status_final ||
-                        serviceData.status_servicio ||
-                        serviceData.status
-                      ) === 'Completado'
+                        serviceData.status === 'Completado' ||
+                        serviceData.status_final === 'Completado'
+                      )
                         ? 'completed'
                         : (
-                            serviceData.status_final ||
-                            serviceData.status_servicio ||
-                            serviceData.status
-                          ) === 'Pendiente'
+                            serviceData.status === 'Pendiente' ||
+                            serviceData.status_final === 'Pendiente'
+                          )
                         ? 'pending'
                         : 'in-progress'
                     )}</p>
@@ -665,9 +663,8 @@ export function ReportsPage() {
                     <p className="font-medium">
                       {
                         (
-                          serviceData.status_final === 'Completado' ||
-                          serviceData.status_servicio === 'Completado' ||
-                          serviceData.status === 'Completado'
+                          serviceData.status === 'Completado' ||
+                          serviceData.status_final === 'Completado'
                         )
                           ? formatDate(
                               serviceData.fecha_fin ||
@@ -849,7 +846,6 @@ export function ReportsPage() {
                                 service.description ||
                                 service.descripcion ||
                                 service.observaciones ||
-                                seguimiento?.observaciones ||
                                 'Sin descripción'
                               )
                         }
