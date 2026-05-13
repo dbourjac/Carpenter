@@ -470,7 +470,11 @@ export function ServiceCreatePage() {
                       className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition border-b last:border-b-0"
                       onClick={() => {
                         updateField('assignedTechnician', String(tech.id));
-                        setTechnicianSearch(tech.nombre || tech.name);
+
+                        setTechnicianSearch(
+                          `${tech.nombre || tech.name}`
+                        );
+
                         setFilteredTechnicians([]);
                       }}
                     >
@@ -537,9 +541,25 @@ export function ServiceCreatePage() {
                       key={item.id}
                       className="px-4 py-3 hover:bg-green-50 cursor-pointer transition border-b last:border-b-0"
                       onClick={() => {
-                        setNewEquipment(String(item.id));
-                        setEquipmentSearch(item.name);
+
+                        const alreadyAdded = formData.equipment.some(
+                          eq => String(eq) === String(item.id)
+                        );
+
+                        if (alreadyAdded) {
+                          toast.error('Este equipo ya fue agregado');
+                          return;
+                        }
+
+                        setFormData(prev => ({
+                          ...prev,
+                          equipment: [...prev.equipment, Number(item.id)]
+                        }));
+
+                        setEquipmentSearch('');
                         setFilteredEquipment([]);
+
+                        toast.success('Equipo agregado');
                       }}
                     >
                       <p className="font-medium text-gray-900">
@@ -553,15 +573,6 @@ export function ServiceCreatePage() {
                   ))}
                 </div>
               )}
-
-              <Button
-                type="button"
-                onClick={handleAddEquipment}
-                className="w-full"
-              >
-                <Plus className="h-4 w-4 mr-1"/>
-                Agregar Equipo
-              </Button>
             </div>
           </CardContent>
         </Card>

@@ -295,21 +295,28 @@ export function EquipmentPage() {
     }
 
     try {
-      await utensiliosApi.completeMaintenance(item.id, {
-        descripcion: maintenanceData.maintenanceNotes || 'Mantenimiento completado',
-        personal_id: maintenanceData.personal_id || undefined,
+
+      await utensiliosApi.update(item.id, {
+        ...item,
+
+        nextMaintenanceDate: null,
+
+        status_mantenimiento: 'Al día',
+
+        maintenanceDescription:
+          maintenanceData.maintenanceNotes ||
+          'Mantenimiento completado'
       });
 
       await loadEquipment();
-      const data = await utensiliosApi.getMaintenanceHistory(item.id);
-      setMaintenanceHistory(data);
 
       toast.success('Mantenimiento completado correctamente');
+
     } catch (err) {
       console.error('Error completing maintenance:', err);
       toast.error('No se pudo completar el mantenimiento');
     }
-    };
+  };
 
   const checkMaintenanceNotifications = (items: EquipmentItem[] = equipment) => {
     const now = new Date();
