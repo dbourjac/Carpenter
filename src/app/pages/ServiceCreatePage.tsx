@@ -38,6 +38,8 @@ export function ServiceCreatePage() {
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [technicianSearch, setTechnicianSearch] = useState('');
   const [filteredTechnicians, setFilteredTechnicians] = useState<any[]>([]);
+  const [equipmentSearch, setEquipmentSearch] = useState('');
+  const [filteredEquipment, setFilteredEquipment] = useState<any[]>([]);
     useEffect(() => {
       const load = async () => {
         try {
@@ -78,6 +80,25 @@ export function ServiceCreatePage() {
 
       setFilteredTechnicians(filtered);
     }, [technicianSearch, technicians]);
+
+    useEffect(() => {
+      if (!equipmentSearch.trim()) {
+        setFilteredEquipment([]);
+        return;
+      }
+
+      const filtered = availableEquipment
+        .filter(
+          e =>
+            e.available &&
+            `${e.name} ${e.id}`
+              .toLowerCase()
+              .includes(equipmentSearch.toLowerCase())
+        )
+        .slice(0, 8);
+
+      setFilteredEquipment(filtered);
+    }, [equipmentSearch, availableEquipment]);
 
   const [newEquipment, setNewEquipment] = useState('');
   const [availableEquipment, setAvailableEquipment] = useState<{ id: string; name: string; available: boolean }[]>([]);
@@ -429,38 +450,48 @@ export function ServiceCreatePage() {
             <CardDescription>Asignar responsable al servicio</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-5">
-            <div className="space-y-2">
-                <Label>Técnico asignado *</Label>
+            <div className="space-y-2 relative">
+              <Label>Técnico asignado *</Label>
 
-                <Input
-                  placeholder="Buscar técnico por nombre o ID..."
-                  value={technicianSearch}
-                  onChange={(e) => setTechnicianSearch(e.target.value)}
-                  className={`h-11 ${errors.assignedTechnician ? 'border-red-500' : ''}`}
-                />
+              <Input
+                placeholder="Buscar técnico por nombre o ID..."
+                value={technicianSearch}
+                onChange={(e) => setTechnicianSearch(e.target.value)}
+                className={`h-11 ${
+                  errors.assignedTechnician ? 'border-red-500' : ''
+                }`}
+              />
 
-                {filteredTechnicians.length > 0 && (
-                  <div className="border rounded-lg bg-white shadow-sm max-h-40 overflow-y-auto">
-                    {filteredTechnicians.map((tech) => (
-                      <div
-                        key={tech.id}
-                        className="p-2 hover:bg-blue-50 cursor-pointer text-sm"
-                        onClick={() => {
-                          updateField('assignedTechnician', String(tech.id));
-                          setTechnicianSearch(tech.nombre || tech.name);
-                          setFilteredTechnicians([]);
-                        }}
-                      >
-                        {tech.nombre || tech.name} — {tech.especialidad || 'Sin especialidad'}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {filteredTechnicians.length > 0 && (
+                <div className="absolute z-20 w-full mt-1 border border-gray-200 rounded-xl bg-white shadow-xl max-h-56 overflow-y-auto">
+                  {filteredTechnicians.map((tech) => (
+                    <div
+                      key={tech.id}
+                      className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition border-b last:border-b-0"
+                      onClick={() => {
+                        updateField('assignedTechnician', String(tech.id));
+                        setTechnicianSearch(tech.nombre || tech.name);
+                        setFilteredTechnicians([]);
+                      }}
+                    >
+                      <p className="font-medium text-gray-900">
+                        {tech.nombre || tech.name}
+                      </p>
 
-                {errors.assignedTechnician && (
-                  <p className="text-sm text-red-600">{errors.assignedTechnician}</p>
-                )}
-              </div>
+                      <p className="text-xs text-gray-500">
+                        ID: {tech.id} • {tech.especialidad || 'Sin especialidad'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {errors.assignedTechnician && (
+                <p className="text-sm text-red-600">
+                  {errors.assignedTechnician}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -491,24 +522,45 @@ export function ServiceCreatePage() {
 
             <Separator />
 
-            <div className="flex gap-2">
-              <Select value={newEquipment} onValueChange={setNewEquipment}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Seleccionar del inventario..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {(availableEquipment || [])
-                    .filter(e => e.available)
-                    .map((item) => (
-                      <SelectItem key={item.id} value={String(item.id)}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3 relative">
+              <Input
+                placeholder="Buscar equipo o herramienta..."
+                value={equipmentSearch}
+                onChange={(e) => setEquipmentSearch(e.target.value)}
+                className="h-11"
+              />
 
-              <Button type="button" onClick={handleAddEquipment}>
-                <Plus className="h-4 w-4 mr-1"/>Agregar
+              {filteredEquipment.length > 0 && (
+                <div className="absolute z-20 w-full mt-1 border rounded-xl bg-white shadow-lg max-h-56 overflow-y-auto">
+                  {filteredEquipment.map((item) => (
+                    <div
+                      key={item.id}
+                      className="px-4 py-3 hover:bg-green-50 cursor-pointer transition border-b last:border-b-0"
+                      onClick={() => {
+                        setNewEquipment(String(item.id));
+                        setEquipmentSearch(item.name);
+                        setFilteredEquipment([]);
+                      }}
+                    >
+                      <p className="font-medium text-gray-900">
+                        {item.name}
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        ID: {item.id}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                type="button"
+                onClick={handleAddEquipment}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-1"/>
+                Agregar Equipo
               </Button>
             </div>
           </CardContent>

@@ -546,18 +546,6 @@ export function ServiceDetailPage() {
                                         <Plus className="h-4 w-4 mr-1"/>Agregar
                                     </Button>
                                 </div>
-                                <p className="text-xs text-gray-500">O escriba manualmente:</p>
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="Nombre del equipo o herramienta"
-                                        value={newEquipment}
-                                        onChange={(e) => setNewEquipment(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddEquipment())}
-                                    />
-                                    <Button onClick={handleAddEquipment}>
-                                        <Plus className="h-4 w-4"/>
-                                    </Button>
-                                </div>
                             </div>
                         </CardContent>
                     </Card>
