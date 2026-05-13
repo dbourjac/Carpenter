@@ -232,7 +232,10 @@ export function ReportsPage() {
     const now = new Date();
 
     return services.filter(s => {
-      const rawDate = s.startDate || s.fecha_inicio || s.createdAt;
+      const rawDate =
+        s.status_final === 'Completado'
+          ? (s.fecha_fin || s.endDate || s.updatedAt)
+          : (s.startDate || s.fecha_inicio || s.createdAt);
     if (!rawDate) {
       return true;
     }
@@ -285,6 +288,7 @@ export function ReportsPage() {
 
       const matchesTechnician =
         !technicianFilter ||
+        technicianFilter === 'todos' ||
         (
           s.nombre_personal ||
           s.assignedTechnician ||
@@ -427,19 +431,26 @@ export function ReportsPage() {
                   <label className="text-sm text-gray-600">Filtrar por técnico</label>
                 </div>
               )}
-              <input
-                list="technicians"
-                className="w-full mt-1 border rounded-md px-3 py-2 text-sm"
-                placeholder="Selecciona técnico..."
+              <Select
                 value={technicianFilter}
-                onChange={(e) => setTechnicianFilter(e.target.value)}
-              />
+                onValueChange={(value) => setTechnicianFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar técnico..." />
+                </SelectTrigger>
 
-              <datalist id="technicians">
-                {uniqueTechnicians.map((t, i) => (
-                  <option key={i} value={t} />
-                ))}
-              </datalist>
+                <SelectContent>
+                  <SelectItem value="todos">
+                    Todos los técnicos
+                  </SelectItem>
+
+                  {uniqueTechnicians.map((t, i) => (
+                    <SelectItem key={i} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             {reportType === 'range' && (
               <div className="flex flex-col sm:flex-row gap-3">
 
@@ -582,9 +593,14 @@ export function ReportsPage() {
                   <div>
                     <p className="text-sm text-gray-600">Fecha de Fin</p>
                     <p className="font-medium">
-                      {serviceData.status_final === 'Completado'
-                        ? formatDate(serviceData.fecha_fin)
-                        : 'No finalizado'}
+                      {
+                        (
+                          serviceData.status_final === 'Completado' ||
+                          serviceData.status === 'completed'
+                        )
+                          ? formatDate(serviceData.fecha_fin || serviceData.endDate)
+                          : 'No finalizado'
+                      }
                     </p>
                   </div>
                 </div>
@@ -656,7 +672,7 @@ export function ReportsPage() {
                     {utensilios.length > 0 ? (
                       utensilios.map((u: any) => (
                         <p key={u.id} className="font-medium">
-                          {u.tipo_utensilio || u.nombre || 'Sin nombre'}
+                          {u.name || u.nombre || 'Sin nombre'}
                         </p>
                       ))
                     ) : (
@@ -741,7 +757,15 @@ export function ReportsPage() {
                           ? formatDate(service.fecha_fin)
                           : 'No finalizado'}
                       </p>
-                      <p><strong>Descripción:</strong> {service.descripcion || service.description || 'N/A'}</p>
+                      <p>
+                        <strong>Descripción:</strong>{' '}
+                        {
+                          service.description ||
+                          service.descripcion ||
+                          service.ubicacion?.split(' | ')[1] ||
+                          'N/A'
+                        }
+                      </p>
 
                       <div className="mt-2 text-sm text-gray-600">
                         {service.requesterName} • {service.requesterArea}
