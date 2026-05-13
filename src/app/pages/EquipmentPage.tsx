@@ -296,11 +296,13 @@ export function EquipmentPage() {
 
     try {
       await utensiliosApi.completeMaintenance(item.id, {
-        descripcion: 'Mantenimiento completado manualmente',
+        descripcion: maintenanceData.maintenanceNotes || 'Mantenimiento completado',
         personal_id: maintenanceData.personal_id || undefined,
       });
 
       await loadEquipment();
+      const data = await utensiliosApi.getMaintenanceHistory(item.id);
+      setMaintenanceHistory(data);
 
       toast.success('Mantenimiento completado correctamente');
     } catch (err) {
@@ -847,7 +849,7 @@ export function EquipmentPage() {
                     className="border rounded-lg p-3 bg-gray-50"
                   >
                     <p className="text-xs text-gray-500">
-                      {new Date(m.fecha_mantenimiento).toLocaleString()}
+                      {new Date(m.fecha_mantenimiento).toLocaleDateString('es-ES')}
                     </p>
 
                     <p className="font-medium">

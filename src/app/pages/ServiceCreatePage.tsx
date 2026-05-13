@@ -40,6 +40,8 @@ export function ServiceCreatePage() {
   const [filteredTechnicians, setFilteredTechnicians] = useState<any[]>([]);
   const [equipmentSearch, setEquipmentSearch] = useState('');
   const [filteredEquipment, setFilteredEquipment] = useState<any[]>([]);
+  const [newEquipment, setNewEquipment] = useState('');
+  const [availableEquipment, setAvailableEquipment] = useState<{ id: string; name: string; available: boolean }[]>([]);
     useEffect(() => {
       const load = async () => {
         try {
@@ -100,8 +102,6 @@ export function ServiceCreatePage() {
       setFilteredEquipment(filtered);
     }, [equipmentSearch, availableEquipment]);
 
-  const [newEquipment, setNewEquipment] = useState('');
-  const [availableEquipment, setAvailableEquipment] = useState<{ id: string; name: string; available: boolean }[]>([]);
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
