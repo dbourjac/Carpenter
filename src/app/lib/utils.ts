@@ -77,18 +77,15 @@ export const formatDate = (dateString: string): string => {
 
   if (!dateString) return 'Sin fecha';
 
-  const safeDate =
-    dateString.includes('T')
-      ? dateString
-      : `${dateString}T12:00:00`;
+  const clean = dateString.split('T')[0];
+  const [year, month, day] = clean.split('-');
 
-  const date = new Date(safeDate);
+  const months = [
+    'ene','feb','mar','abr','may','jun',
+    'jul','ago','sep','oct','nov','dic'
+  ];
 
-  return date.toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  return `${Number(day)} ${months[Number(month) - 1]} ${year}`;
 };
 
 export const getTodayDateString = (): string => {
