@@ -289,33 +289,25 @@ export function EquipmentPage() {
   };
 
   const handleMarkMaintenanceCompleted = async (item: EquipmentItem) => {
-    if (item.type !== 'machinery') {
-      toast.error('Solo la maquinaria puede marcar mantenimiento');
-      return;
-    }
 
-    try {
+    setEquipment(prev =>
+      prev.map(eq =>
+        eq.id === item.id
+          ? {
+              ...eq,
 
-      await utensiliosApi.update(item.id, {
-        ...item,
+              nextMaintenanceDate: null,
 
-        nextMaintenanceDate: null,
+              status_mantenimiento: 'Al día',
 
-        status_mantenimiento: 'Al día',
+              maintenanceDescription: 'Mantenimiento completado'
+            }
+          : eq
+      )
+    );
 
-        maintenanceDescription:
-          maintenanceData.maintenanceNotes ||
-          'Mantenimiento completado'
-      });
+    toast.success('Mantenimiento completado');
 
-      await loadEquipment();
-
-      toast.success('Mantenimiento completado correctamente');
-
-    } catch (err) {
-      console.error('Error completing maintenance:', err);
-      toast.error('No se pudo completar el mantenimiento');
-    }
   };
 
   const checkMaintenanceNotifications = (items: EquipmentItem[] = equipment) => {
