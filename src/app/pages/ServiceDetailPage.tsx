@@ -175,7 +175,7 @@ export function ServiceDetailPage() {
                 fecha_fin_estimada: estimatedCompletion || null,
                 observaciones: observations || null,
                 personal_id: assignedTechnician || null,
-                ubicacion: location || null
+                ubicacion: `${location || ''} | ${service.description || ''}`
             });
             }
             if (status !== service.status) {
