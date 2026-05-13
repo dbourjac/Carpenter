@@ -200,12 +200,14 @@ export function ReportsPage() {
               s.requesterPhone ||
               s.telefono ||
               s.tel_solicitante ||
+              serviceData?.requesterPhone ||
               'Sin teléfono'
             }
             -
             ${
               s.requesterEmail ||
               s.email ||
+              serviceData?.requesterEmail ||
               'Sin email'
             }
           </p>
@@ -213,21 +215,26 @@ export function ReportsPage() {
           <h3>Detalles</h3>
           <p><b>Observaciones:</b> ${seguimiento?.observaciones || 'Sin observaciones'}</p>
           <p><b>Descripción:</b> ${
-            (
-              s.svc_ubicacion &&
-              s.svc_ubicacion.includes(' | ')
-            )
-              ? s.svc_ubicacion.split(' | ')[1]
-              : (
-                  s.ubicacion &&
-                  s.ubicacion.includes(' | ')
+            s.svc_ubicacion
+              ? (
+                  s.svc_ubicacion.includes(' | ')
+                    ? s.svc_ubicacion.split(' | ')[1]
+                    : s.svc_ubicacion
                 )
-              ? s.ubicacion.split(' | ')[1]
               : (
-                  s.description ||
-                  s.descripcion ||
-                  s.observaciones ||
-                  'Sin descripción'
+                  s.ubicacion
+                    ? (
+                        s.ubicacion.includes(' | ')
+                          ? s.ubicacion.split(' | ')[1]
+                          : s.ubicacion
+                      )
+                    : (
+                        s.description ||
+                        s.descripcion ||
+                        s.observaciones ||
+                        serviceData?.description ||
+                        'Sin descripción'
+                      )
                 )
           }</p>
 
@@ -241,15 +248,12 @@ export function ReportsPage() {
           <h4>Evidencias</h4>
           ${
             evidencias.length > 0
-              ? evidencias.map(e => `
-                  <img
-                    src="${e.url_image}"
-                    style="
-                      max-width:250px;
-                      display:block;
-                      margin-bottom:10px;
-                    "
-                  />
+              ? evidencias.map((e, i) => `
+                  <p>
+                    <a href="${e.url_image}" target="_blank">
+                      Ver evidencia ${i + 1}
+                    </a>
+                  </p>
                 `).join('')
               : '<p>No hay evidencias</p>'
           }
@@ -639,11 +643,13 @@ export function ReportsPage() {
                     <p className="font-medium">{getStatusLabel(
                       (
                         serviceData.status === 'Completado' ||
+                        serviceData.status === 'completed' ||
                         serviceData.status_final === 'Completado'
                       )
                         ? 'completed'
                         : (
                             serviceData.status === 'Pendiente' ||
+                            serviceData.status === 'pending' ||
                             serviceData.status_final === 'Pendiente'
                           )
                         ? 'pending'
@@ -664,6 +670,7 @@ export function ReportsPage() {
                       {
                         (
                           serviceData.status === 'Completado' ||
+                          serviceData.status === 'completed' ||
                           serviceData.status_final === 'Completado'
                         )
                           ? formatDate(
@@ -832,21 +839,25 @@ export function ReportsPage() {
                       <p>
                         <strong>Descripción:</strong>{' '}
                         {
-                          (
-                            service.svc_ubicacion &&
-                            service.svc_ubicacion.includes(' | ')
-                          )
-                            ? service.svc_ubicacion.split(' | ')[1]
-                            : (
-                                service.ubicacion &&
-                                service.ubicacion.includes(' | ')
+                          service.svc_ubicacion
+                            ? (
+                                service.svc_ubicacion.includes(' | ')
+                                  ? service.svc_ubicacion.split(' | ')[1]
+                                  : service.svc_ubicacion
                               )
-                            ? service.ubicacion.split(' | ')[1]
                             : (
-                                service.description ||
-                                service.descripcion ||
-                                service.observaciones ||
-                                'Sin descripción'
+                                service.ubicacion
+                                  ? (
+                                      service.ubicacion.includes(' | ')
+                                        ? service.ubicacion.split(' | ')[1]
+                                        : service.ubicacion
+                                    )
+                                  : (
+                                      service.description ||
+                                      service.descripcion ||
+                                      service.observaciones ||
+                                      'Sin descripción'
+                                    )
                               )
                         }
                       </p>
