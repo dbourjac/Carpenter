@@ -294,24 +294,20 @@ export function EquipmentPage() {
       return;
     }
 
-    if (!item.nextMaintenanceDate) {
-      toast.error('No hay mantenimiento programado para este item');
-      return;
-    }
-
     try {
-      await utensiliosApi.update(item.id, {
-        ...item,
-        maintenanceCompleted: true,
-        lastMaintenanceDate: new Date().toISOString(),
+      await utensiliosApi.completeMaintenance(item.id, {
+        descripcion: 'Mantenimiento completado manualmente',
+        personal_id: maintenanceData.personal_id || undefined,
       });
+
       await loadEquipment();
-      toast.success('Mantenimiento marcado como completado');
+
+      toast.success('Mantenimiento completado correctamente');
     } catch (err) {
       console.error('Error completing maintenance:', err);
-      toast.error('No se pudo marcar el mantenimiento');
+      toast.error('No se pudo completar el mantenimiento');
     }
-  };
+    };
 
   const checkMaintenanceNotifications = (items: EquipmentItem[] = equipment) => {
     const now = new Date();
@@ -759,8 +755,7 @@ export function EquipmentPage() {
                             setDetailsItem(item);
 
                             try {
-                              const res = await fetch(`/api/utensilios/${item.id}/mantenimiento`);
-                              const data = await res.json();
+                              const data = await utensiliosApi.getMaintenanceHistory(item.id);
                               setMaintenanceHistory(data);
                             } catch {
                               setMaintenanceHistory([]);
@@ -779,6 +774,14 @@ export function EquipmentPage() {
                           onClick={() => openMaintenanceDialog(item)}
                         >
                           <Wrench className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="text-green-600 border-green-300 hover:bg-green-50"
+                          onClick={() => handleMarkMaintenanceCompleted(item)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
                         </Button>
 
                       </div>
