@@ -263,12 +263,20 @@ export function ReportsPage() {
           <h4>Evidencias</h4>
           ${
             evidencias.length > 0
-              ? evidencias.map((e, i) => `
-                  <p>
-                    <a href="${e.url_image}" target="_blank">
-                      Ver evidencia ${i + 1}
-                    </a>
-                  </p>
+              ? evidencias.map((e) => `
+                  <img
+                    src="${
+                      e.url_image ||
+                      e.image ||
+                      e.imagen ||
+                      e.url
+                    }"
+                    style="
+                      max-width:300px;
+                      margin-top:10px;
+                      border-radius:8px;
+                    "
+                  />
                 `).join('')
               : '<p>No hay evidencias</p>'
           }
@@ -783,12 +791,12 @@ export function ReportsPage() {
                         evidencias.map((e, i) => (
                           <img
                             key={i}
-                            src="${
+                            src={
                               e.url_image ||
                               e.image ||
                               e.imagen ||
                               e.url
-                            }"
+                            }
                             className="w-full h-auto object-contain rounded-lg shadow"
                           />
                         ))
@@ -859,30 +867,23 @@ export function ReportsPage() {
                       <p>
                         <strong>Descripción:</strong>{' '}
                         {
+                          service.description ||
+                          service.descripcion ||
+                          service.observaciones ||
                           (
-                            service.description ||
-                            service.descripcion
+                            service.svc_ubicacion &&
+                            service.svc_ubicacion.includes(' | ')
                           )
-                            ? (
-                                service.description ||
-                                service.descripcion
-                              )
+                            ? service.svc_ubicacion.split(' | ')[1]
                             : (
-                                service.svc_ubicacion
-                                  ? (
-                                      service.svc_ubicacion.includes(' | ')
-                                        ? service.svc_ubicacion.split(' | ')[1]
-                                        : service.svc_ubicacion
-                                    )
-                                  : (
-                                      service.ubicacion
-                                        ? (
-                                            service.ubicacion.includes(' | ')
-                                              ? service.ubicacion.split(' | ')[1]
-                                              : service.ubicacion
-                                          )
-                                        : 'Sin descripción'
-                                    )
+                                service.ubicacion &&
+                                service.ubicacion.includes(' | ')
+                              )
+                            ? service.ubicacion.split(' | ')[1]
+                            : (
+                                service.svc_ubicacion ||
+                                service.ubicacion ||
+                                'Sin descripción'
                               )
                         }
                       </p>
