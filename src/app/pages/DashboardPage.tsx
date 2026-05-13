@@ -232,7 +232,11 @@ export function DashboardPage() {
                 No hay servicios registrados
               </div>
             ) : (
-              sortServices(services).slice(0, 5)
+              sortServices(
+                services.filter(
+                  s => s.status !== 'completed'
+                )
+              ).slice(0, 5)
                 .map((service) => (
                   <Link 
                     key={service.id} 

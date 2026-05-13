@@ -48,7 +48,22 @@ export function ReportsPage() {
         let servicios = [];
 
         try {
-          servicios = await reportesApi.getHistorial();
+          const historial = await reportesApi.getHistorial();
+          const activos = await serviceApi.getAll();
+
+          const combinados = [
+            ...(Array.isArray(historial) ? historial : []),
+            ...(Array.isArray(activos)
+              ? activos.filter(
+                  a =>
+                    !historial.some(
+                      (h: any) => String(h.id) === String(a.id)
+                    )
+                )
+              : [])
+          ];
+
+          servicios = combinados;
         } catch (e) {
           console.error('services falló', e);
         }
@@ -768,7 +783,12 @@ export function ReportsPage() {
                         evidencias.map((e, i) => (
                           <img
                             key={i}
-                            src={e.url_image}
+                            src="${
+                              e.url_image ||
+                              e.image ||
+                              e.imagen ||
+                              e.url
+                            }"
                             className="w-full h-auto object-contain rounded-lg shadow"
                           />
                         ))
@@ -839,24 +859,29 @@ export function ReportsPage() {
                       <p>
                         <strong>Descripción:</strong>{' '}
                         {
-                          service.svc_ubicacion
+                          (
+                            service.description ||
+                            service.descripcion
+                          )
                             ? (
-                                service.svc_ubicacion.includes(' | ')
-                                  ? service.svc_ubicacion.split(' | ')[1]
-                                  : service.svc_ubicacion
+                                service.description ||
+                                service.descripcion
                               )
                             : (
-                                service.ubicacion
+                                service.svc_ubicacion
                                   ? (
-                                      service.ubicacion.includes(' | ')
-                                        ? service.ubicacion.split(' | ')[1]
-                                        : service.ubicacion
+                                      service.svc_ubicacion.includes(' | ')
+                                        ? service.svc_ubicacion.split(' | ')[1]
+                                        : service.svc_ubicacion
                                     )
                                   : (
-                                      service.description ||
-                                      service.descripcion ||
-                                      service.observaciones ||
-                                      'Sin descripción'
+                                      service.ubicacion
+                                        ? (
+                                            service.ubicacion.includes(' | ')
+                                              ? service.ubicacion.split(' | ')[1]
+                                              : service.ubicacion
+                                          )
+                                        : 'Sin descripción'
                                     )
                               )
                         }
