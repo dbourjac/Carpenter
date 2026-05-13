@@ -180,30 +180,55 @@ export function ReportsPage() {
           }</p>
 
           <h3>Solicitante</h3>
-          <p>${s.requesterName || 'N/A'} - ${s.nombre_area || ''}</p>
+
           <p>
-            ${s.requesterPhone || s.telefono || ''}
+            ${
+              s.requesterName ||
+              s.nombre_contacto ||
+              'N/A'
+            }
             -
-            ${s.requesterEmail || s.email || ''}
+            ${
+              s.requesterArea ||
+              s.nombre_area ||
+              ''
+            }
+          </p>
+
+          <p>
+            ${
+              s.requesterPhone ||
+              s.telefono ||
+              ''
+            }
+            -
+            ${
+              s.requesterEmail ||
+              s.email ||
+              ''
+            }
           </p>
 
           <h3>Detalles</h3>
           <p><b>Observaciones:</b> ${seguimiento?.observaciones || 'Sin observaciones'}</p>
           <p><b>Descripción:</b> ${
-            s.description ||
-            s.descripcion ||
-            s.observaciones ||
             (
-              s.ubicacion?.includes(' | ')
-                ? s.ubicacion.split(' | ')[1]
-                : ''
-            ) ||
-            (
-              s.svc_ubicacion?.includes(' | ')
-                ? s.svc_ubicacion.split(' | ')[1]
-                : ''
-            ) ||
-            'N/A'
+              s.svc_ubicacion &&
+              s.svc_ubicacion.includes(' | ')
+            )
+              ? s.svc_ubicacion.split(' | ')[1]
+              : (
+                  s.ubicacion &&
+                  s.ubicacion.includes(' | ')
+                )
+              ? s.ubicacion.split(' | ')[1]
+              : (
+                  s.description ||
+                  s.descripcion ||
+                  s.observaciones ||
+                  seguimiento?.observaciones ||
+                  'Sin descripción'
+                )
           }</p>
 
           <h4>Equipos</h4>
@@ -216,9 +241,16 @@ export function ReportsPage() {
           <h4>Evidencias</h4>
           ${
             evidencias.length > 0
-              ? evidencias.map((_, i) =>
-                  `<p>Evidencia ${i + 1} adjunta</p>`
-                ).join('')
+              ? evidencias.map(e => `
+                  <img
+                    src="${e.url_image || e.imagen}"
+                    style="
+                      max-width:250px;
+                      display:block;
+                      margin-bottom:10px;
+                    "
+                  />
+                `).join('')
               : '<p>No hay evidencias</p>'
           }
 
@@ -605,18 +637,20 @@ export function ReportsPage() {
                   <div>
                     <p className="text-sm text-gray-600">Estado</p>
                     <p className="font-medium">{getStatusLabel(
-                        (
-                          serviceData.status_final ||
-                          serviceData.status
-                        ) === 'Completado'
-                          ? 'completed'
-                          : (
-                              serviceData.status_final ||
-                              serviceData.status
-                            ) === 'Pendiente'
-                          ? 'pending'
-                          : 'in-progress'
-                      )}</p>
+                      (
+                        serviceData.status_final ||
+                        serviceData.status_servicio ||
+                        serviceData.status
+                      ) === 'Completado'
+                        ? 'completed'
+                        : (
+                            serviceData.status_final ||
+                            serviceData.status_servicio ||
+                            serviceData.status
+                          ) === 'Pendiente'
+                        ? 'pending'
+                        : 'in-progress'
+                    )}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Técnico Asignado</p>
@@ -632,9 +666,14 @@ export function ReportsPage() {
                       {
                         (
                           serviceData.status_final === 'Completado' ||
+                          serviceData.status_servicio === 'Completado' ||
                           serviceData.status === 'Completado'
                         )
-                          ? formatDate(serviceData.fecha_fin || serviceData.endDate)
+                          ? formatDate(
+                              serviceData.fecha_fin ||
+                              serviceData.endDate ||
+                              serviceData.updated_at
+                            )
                           : 'No finalizado'
                       }
                     </p>
@@ -796,20 +835,23 @@ export function ReportsPage() {
                       <p>
                         <strong>Descripción:</strong>{' '}
                         {
-                          service.description ||
-                          service.descripcion ||
-                          service.observaciones ||
                           (
-                            service.ubicacion?.includes(' | ')
-                              ? service.ubicacion.split(' | ')[1]
-                              : ''
-                          ) ||
-                          (
-                            service.svc_ubicacion?.includes(' | ')
-                              ? service.svc_ubicacion.split(' | ')[1]
-                              : ''
-                          ) ||
-                          'N/A'
+                            service.svc_ubicacion &&
+                            service.svc_ubicacion.includes(' | ')
+                          )
+                            ? service.svc_ubicacion.split(' | ')[1]
+                            : (
+                                service.ubicacion &&
+                                service.ubicacion.includes(' | ')
+                              )
+                            ? service.ubicacion.split(' | ')[1]
+                            : (
+                                service.description ||
+                                service.descripcion ||
+                                service.observaciones ||
+                                seguimiento?.observaciones ||
+                                'Sin descripción'
+                              )
                         }
                       </p>
 
