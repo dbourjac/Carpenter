@@ -238,7 +238,7 @@ export function ReportsPage() {
               s.svc_ubicacion
                 ? (
                     s.svc_ubicacion.includes(' | ')
-                      ? s.svc_ubicacion.split(' | ')[1]
+                      ? s.svc_ubicacion.split(' | ').slice(1).join(' | ')
                       : s.svc_ubicacion
                   )
                 : ''
@@ -248,7 +248,7 @@ export function ReportsPage() {
               s.ubicacion
                 ? (
                     s.ubicacion.includes(' | ')
-                      ? s.ubicacion.split(' | ')[1]
+                      ? s.ubicacion.split(' | ').slice(1).join(' | ')
                       : s.ubicacion
                   )
                 : ''
@@ -879,8 +879,8 @@ export function ReportsPage() {
                             service.svc_ubicacion
                               ? (
                                   service.svc_ubicacion.includes(' | ')
-                                    ? service.svc_ubicacion.split(' | ')[1]
-                                    : service.svc_ubicacion
+                                    ? service.svc_ubicacion.split(' | ').slice(1).join(' | ')
+                                    : null
                                 )
                               : null
                           ) ||
@@ -889,8 +889,8 @@ export function ReportsPage() {
                             service.ubicacion
                               ? (
                                   service.ubicacion.includes(' | ')
-                                    ? service.ubicacion.split(' | ')[1]
-                                    : service.ubicacion
+                                    ? service.ubicacion.split(' | ').slice(1).join(' | ')
+                                    : null
                                 )
                               : null
                           ) ||
