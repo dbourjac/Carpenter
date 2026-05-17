@@ -83,7 +83,7 @@ export function EquipmentPage() {
       checkMaintenanceNotifications(rows);
     } catch (err) {
       console.error('Error loading utensilios:', err);
-      toast.error('No se pudieron cargar equipos y utensilios');
+      toast.error('No se pudieron cargar equipos y herramientas');
     } finally {
       setLoadingEquipment(false);
     }
@@ -372,9 +372,9 @@ export function EquipmentPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <h1 className="text-3xl font-bold flex items-center gap-3">
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Equipos y Utensilios
+              Equipos y Herramientas
             </span>
           </h1>
           <p className="text-gray-600 mt-1">Gestión de recursos del taller</p>
@@ -392,9 +392,9 @@ export function EquipmentPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+              <DialogHeader>
               <DialogTitle>
-                {editingItem ? 'Editar Item' : 'Nuevo Equipo o Utensilio'}
+                {editingItem ? 'Editar Item' : 'Nuevo Equipo o Herramienta'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -423,7 +423,7 @@ export function EquipmentPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="equipment">Equipo</SelectItem>
-                    <SelectItem value="tool">Utensilio</SelectItem>
+                    <SelectItem value="tool">Herramienta</SelectItem>
                     <SelectItem value="machinery">Maquinaria</SelectItem>
                   </SelectContent>
                 </Select>
@@ -578,7 +578,7 @@ export function EquipmentPage() {
                 <Wrench className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-blue-100">Utensilios</p>
+                <p className="text-sm text-blue-100">Herramientas</p>
                 <p className="text-3xl font-bold">{stats.tools}</p>
               </div>
             </div>
@@ -616,11 +616,11 @@ export function EquipmentPage() {
 
       {/* Equipment List */}
       <Tabs value={typeFilter} onValueChange={setTypeFilter}>
-        <TabsList className="grid w-full max-w-md grid-cols-4">
+          <TabsList className="grid w-full max-w-md grid-cols-4">
           <TabsTrigger value="all">Todos</TabsTrigger>
           <TabsTrigger value="machinery">Maquinaria</TabsTrigger>
           <TabsTrigger value="equipment">Equipos</TabsTrigger>
-          <TabsTrigger value="tool">Utensilios</TabsTrigger>
+          <TabsTrigger value="tool">Herramientas</TabsTrigger>
         </TabsList>
 
         <TabsContent value={typeFilter} className="mt-6">
@@ -629,11 +629,11 @@ export function EquipmentPage() {
               <CardTitle>Listado de Recursos</CardTitle>
               <CardDescription>
                 {typeFilter === 'all'
-                  ? 'Todos los equipos y utensilios'
+                  ? 'Todos los equipos y herramientas'
                   : typeFilter === 'equipment'
                   ? 'Maquinaria y equipos'
                   : typeFilter === 'tool'
-                  ? 'Utensilios del taller'
+                  ? 'Herramientas del taller'
                   : 'Maquinaria pesada del taller'}
               </CardDescription>
             </CardHeader>

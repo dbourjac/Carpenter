@@ -1,5 +1,5 @@
 import {useState, useEffect, useRef} from 'react';
-import {useParams, useNavigate} from 'react-router';
+import {useParams, useNavigate, useLocation} from 'react-router';
 import {ArrowLeft, Save, Plus, X, Upload, Trash2, MapPin, Calendar, User as UserIcon, AlertCircle} from 'lucide-react';
 import {Button} from '../components/ui/button';
 import {Input} from '../components/ui/input';
@@ -41,11 +41,12 @@ const isUnderMaintenance = (item: EquipmentItem) => {
 export function ServiceDetailPage() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [service, setService] = useState<ServiceRequest | null>(null);
     const [status, setStatus] = useState<ServiceStatus>('pending');
     const [priority, setPriority] = useState<ServicePriority>('medium');
     const [assignedTechnician, setAssignedTechnician] = useState('');
-    const [location, setLocation] = useState('');
+    const [ubicacion, setUbicacion] = useState('');
     const [estimatedCompletion, setEstimatedCompletion] = useState('');
     const [observations, setObservations] = useState('');
     const [newEquipment, setNewEquipment] = useState('');
@@ -93,11 +94,13 @@ export function ServiceDetailPage() {
                 setStatus(data.status);
                 setPriority(data.priority);
                 setAssignedTechnician(String(data.assignedTechnician || ''));
-                setLocation(data.location || '');
+                setUbicacion(data.location || '');
                 setEstimatedCompletion(
                     data.estimatedCompletionDate
                         ? data.estimatedCompletionDate.split('T')[0]
-                        : ''
+                        : (location.state?.estimatedCompletionDate
+                            ? String(location.state.estimatedCompletionDate).split('T')[0]
+                            : '')
                 );
             } catch (error) {
                 toast.error('Servicio no encontrado');
@@ -175,7 +178,7 @@ export function ServiceDetailPage() {
                 fecha_fin_estimada: estimatedCompletion || null,
                 observaciones: observations || null,
                 personal_id: assignedTechnician || null,
-                ubicacion: `${location || ''} | ${service.description || ''}`
+                ubicacion: `${ubicacion || ''} | ${service.description || ''}`
             });
             }
             if (status !== service.status) {
@@ -209,7 +212,7 @@ export function ServiceDetailPage() {
                     solicitanteId: service.solicitanteId,
                     priority,
                     assignedTechnician: assignedTechnician || null,
-                    location: location || null,
+                    location: ubicacion || null,
                     estimatedCompletionDate: estimatedCompletion || null,
                 });
 
@@ -724,8 +727,8 @@ export function ServiceDetailPage() {
                                 <Label htmlFor="location" className="flex items-center gap-2">
                                     <MapPin className="h-4 w-4"/>Ubicación
                                 </Label>
-                                <Input id="location" placeholder="ej. Planta Baja - Sección 3" value={location}
-                                       onChange={(e) => setLocation(e.target.value)}/>
+                                <Input id="location" placeholder="ej. Planta Baja - Sección 3" value={ubicacion}
+                                       onChange={(e) => setUbicacion(e.target.value)}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="estimatedCompletion" className="flex items-center gap-2">

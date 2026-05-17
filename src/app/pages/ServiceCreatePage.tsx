@@ -232,7 +232,7 @@ export function ServiceCreatePage() {
 
         toast.success('Servicio creado exitosamente');
 
-        navigate(`/services/${newService.id}`);
+        navigate(`/services/${newService.id}`, { state: { estimatedCompletionDate: formData.estimatedCompletionDate || null } });
 
       } catch (error: any) {
         console.error('🔥 ERROR COMPLETO:', error);
